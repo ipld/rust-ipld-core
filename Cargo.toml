@@ -1,0 +1,20 @@
+[package]
+name = "ipld-core"
+version = "0.1.0"
+authors = [
+    "Volker Mische <volker.mische@gmail.com>"
+]
+repository = "https://github.com/vmx/ipld-core"
+edition = "2021"
+description = "IPLD core types"
+license = "MIT OR Apache-2.0"
+categories = ["data-structures", "encoding"]
+
+[features]
+default = ["std"]
+std = ["serde?/std"]
+serde = ["dep:serde", "cid/serde-codec"]
+
+[dependencies]
+cid = { version = "0.11.0", default-features = false, features = ["alloc"] }
+serde = { version = "1.0.195", default-features = false, features = ["alloc"], optional = true }
