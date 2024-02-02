@@ -11,8 +11,7 @@ checksum = "4cbbc9d0964165b47557570cce6c952866c2678457aca742aafc9fb771d30270"
 [[package]]
 name = "cid"
 version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "472ac98592f38dfd48f188d5713a328422ed22fa39eb52b8bca495370134762a"
+source = "git+https://github.com/multiformats/rust-cid?branch=cid-as-enum#2503b650e0cfb9af3d5460bd99189853fef62b76"
 dependencies = [
  "core2",
  "multibase",

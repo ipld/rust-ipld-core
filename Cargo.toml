@@ -18,3 +18,6 @@ serde = ["dep:serde", "cid/serde-codec"]
 [dependencies]
 cid = { version = "0.11.0", default-features = false, features = ["alloc"] }
 serde = { version = "1.0.195", default-features = false, features = ["alloc"], optional = true }
+
+[patch.crates-io]
+cid = { git = "https://github.com/multiformats/rust-cid", branch = "cid-as-enum", features = ["serde"] }

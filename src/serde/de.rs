@@ -6,7 +6,7 @@ use cid::{
     Cid,
 };
 use serde::{
-    de::{self, Deserialize, IntoDeserializer},
+    de::{self, Deserialize, IntoDeserializer, VariantAccess},
     forward_to_deserialize_any,
 };
 
@@ -260,9 +260,10 @@ impl<'de> de::Deserialize<'de> for Ipld {
             where
                 D: de::Deserializer<'de>,
             {
-                deserializer
-                    .deserialize_bytes(BytesToCidVisitor)
-                    .map(Ipld::Link)
+                //deserializer
+                //    .deserialize_bytes(BytesToCidVisitor)
+                //    .map(Ipld::Link)
+                Err(de::Error::custom("newtyp struct is not supported"))
             }
 
             #[inline]
@@ -296,11 +297,24 @@ impl<'de> de::Deserialize<'de> for Ipld {
                 Ok(Ipld::Map(values))
             }
 
-            fn visit_enum<A>(self, _visitor: A) -> Result<Self::Value, A::Error>
+            /// Enums are only used to deserialize CIDs.
+            #[inline]
+            fn visit_enum<A>(self, data: A) -> Result<Self::Value, A::Error>
             where
                 A: de::EnumAccess<'de>,
             {
-                Err(de::Error::custom("enum is not supported"))
+                match data.variant() {
+                    // Make sure that we only deserialize a CID when we clearly intended to.
+                    Ok((CID_SERDE_PRIVATE_IDENTIFIER, value)) => {
+                        // It's not really a tuple, we use the `tuple_variant` call in order to be
+                        // able to pass in a custom visitor.
+                        let cid = value.tuple_variant(1, BytesToCidVisitor)?;
+                        Ok(Ipld::Link(cid))
+                    }
+                    _ => Err(de::Error::custom(
+                        "invalid type: enum, expected any valid IPLD kind",
+                    )),
+                }
             }
         }
 
