@@ -17,5 +17,6 @@ pub mod serde;
 
 #[cfg(feature = "arb")]
 mod arb;
+mod macros;
 
 pub use cid;

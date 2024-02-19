@@ -2,7 +2,7 @@
 /// Construct an `Ipld` from a literal.
 ///
 /// ```edition2018
-/// # use libipld_macro::ipld;
+/// # use ipld_core::ipld;
 /// #
 /// let value = ipld!({
 ///     "code": 200,
@@ -24,7 +24,7 @@
 /// map with non-string keys, the `json!` macro will panic.
 ///
 /// ```edition2018
-/// # use libipld_macro::ipld;
+/// # use ipld_core::ipld;
 /// #
 /// let code = 200;
 /// let features = vec!["serde", "json"];
@@ -41,7 +41,7 @@
 /// Trailing commas are allowed inside both arrays and objects.
 ///
 /// ```edition2018
-/// # use libipld_macro::ipld;
+/// # use ipld_core::ipld;
 /// #
 /// let value = ipld!([
 ///     "notice",
@@ -50,8 +50,6 @@
 ///     "comma -->",
 /// ]);
 /// ```
-pub use libipld_core::ipld::Ipld;
-
 #[macro_export(local_inner_macros)]
 macro_rules! ipld {
     // Hide distracting implementation details from the generated rustdoc.
@@ -232,31 +230,31 @@ macro_rules! ipld_internal {
     //////////////////////////////////////////////////////////////////////////
 
     (null) => {
-        $crate::Ipld::Null
+        $crate::ipld::Ipld::Null
     };
 
     (true) => {
-        $crate::Ipld::Bool(true)
+        $crate::ipld::Ipld::Bool(true)
     };
 
     (false) => {
-        $crate::Ipld::Bool(false)
+        $crate::ipld::Ipld::Bool(false)
     };
 
     ([]) => {
-        $crate::Ipld::List(ipld_internal_vec![])
+        $crate::ipld::Ipld::List(ipld_internal_vec![])
     };
 
     ([ $($tt:tt)+ ]) => {
-        $crate::Ipld::List(ipld_internal!(@array [] $($tt)+))
+        $crate::ipld::Ipld::List(ipld_internal!(@array [] $($tt)+))
     };
 
     ({}) => {
-        $crate::Ipld::Map(std::collections::BTreeMap::new())
+        $crate::ipld::Ipld::Map(std::collections::BTreeMap::new())
     };
 
     ({ $($tt:tt)+ }) => {
-        $crate::Ipld::Map({
+        $crate::ipld::Ipld::Map({
             let mut object = std::collections::BTreeMap::new();
             ipld_internal!(@object object () ($($tt)+) ($($tt)+));
             object
@@ -267,7 +265,7 @@ macro_rules! ipld_internal {
     // Must be below every other rule.
     ($other:expr) => {
         {
-            $crate::Ipld::from($other)
+            $crate::ipld::Ipld::from($other)
         }
     };
 }
@@ -291,9 +289,9 @@ macro_rules! ipld_unexpected {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use libipld_core::cid::Cid;
-    use libipld_core::multihash::{Code, MultihashDigest};
+    use cid::Cid;
+
+    use crate::ipld::Ipld;
 
     #[test]
     fn test_macro() {
@@ -311,7 +309,8 @@ mod tests {
             "numbers": [1, 2, 3],
             "a": a,
         });
-        let mh = Code::Blake3_256.digest(&b"cid"[..]);
-        let _: Ipld = ipld!(Cid::new_v1(0, mh));
+        let cid =
+            Cid::try_from("bafkreie74tgmnxqwojhtumgh5dzfj46gi4mynlfr7dmm7duwzyvnpw7h7m").unwrap();
+        let _: Ipld = ipld!(cid);
     }
 }
