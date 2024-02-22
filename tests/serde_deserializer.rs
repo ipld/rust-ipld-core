@@ -1,4 +1,4 @@
-#![cfg(feature = "serde-codec")]
+#![cfg(feature = "serde")]
 
 extern crate alloc;
 
@@ -7,10 +7,11 @@ use core::convert::TryFrom;
 
 use serde::Deserialize;
 use serde_bytes::ByteBuf;
+use serde_derive::Deserialize;
 use serde_json::json;
 
-use libipld_core::cid::Cid;
-use libipld_core::ipld::Ipld;
+use ipld_core::cid::Cid;
+use ipld_core::ipld::Ipld;
 
 /// This function is to test that all IPLD kinds except the given one errors, when trying to
 /// deserialize to the given Rust type.

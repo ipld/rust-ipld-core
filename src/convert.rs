@@ -197,7 +197,7 @@ derive_try_from_ipld_option!(Map, BTreeMap<String, Ipld>);
 #[cfg(feature = "std")]
 derive_try_from_ipld_option!(Link, Cid);
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use alloc::collections::BTreeMap;
 

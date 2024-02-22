@@ -51,9 +51,9 @@ use crate::ipld::Ipld;
 /// # Example
 ///
 /// ```
-/// use serde::Serialize;
-/// use libipld_core::ipld::Ipld;
-/// use libipld_core::serde::to_ipld;
+/// use serde_derive::Serialize;
+/// use ipld_core::ipld::Ipld;
+/// use ipld_core::serde::to_ipld;
 ///
 /// #[derive(Serialize)]
 /// struct Person {

@@ -1,16 +1,17 @@
-#![cfg(feature = "serde-codec")]
+#![cfg(feature = "serde")]
 
 extern crate alloc;
 
 use alloc::collections::BTreeMap;
 use core::convert::TryFrom;
 
-use serde::{ser, Serialize};
+use serde::ser;
 use serde_bytes::ByteBuf;
+use serde_derive::Serialize;
 
-use libipld_core::cid::Cid;
-use libipld_core::ipld::Ipld;
-use libipld_core::serde::to_ipld;
+use ipld_core::cid::Cid;
+use ipld_core::ipld::Ipld;
+use ipld_core::serde::to_ipld;
 
 fn assert_serialized<T>(input: T, ipld: Ipld)
 where

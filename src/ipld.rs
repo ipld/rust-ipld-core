@@ -9,7 +9,8 @@ use alloc::{
 };
 use core::fmt;
 
-use crate::cid::Cid;
+use cid::Cid;
+
 use crate::error::TypeError;
 
 /// Ipld
@@ -194,8 +195,6 @@ impl<'a> Iterator for IpldIter<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::cid::Cid;
-    use crate::multihash::{Code, MultihashDigest};
 
     #[test]
     fn test_ipld_bool_from() {
@@ -246,9 +245,8 @@ mod tests {
 
     #[test]
     fn test_ipld_link_from() {
-        let data = vec![0, 1, 2, 3];
-        let hash = Code::Blake3_256.digest(&data);
-        let cid = Cid::new_v1(0x55, hash);
+        let cid =
+            Cid::try_from("bafkreie74tgmnxqwojhtumgh5dzfj46gi4mynlfr7dmm7duwzyvnpw7h7m").unwrap();
         assert_eq!(Ipld::Link(cid), Ipld::from(cid));
     }
 

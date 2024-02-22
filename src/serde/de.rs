@@ -18,9 +18,9 @@ use crate::ipld::Ipld;
 /// ```
 /// use std::collections::BTreeMap;
 ///
-/// use serde::Deserialize;
-/// use libipld_core::ipld::Ipld;
-/// use libipld_core::serde::from_ipld;
+/// use serde_derive::Deserialize;
+/// use ipld_core::ipld::Ipld;
+/// use ipld_core::serde::from_ipld;
 ///
 /// #[derive(Deserialize)]
 /// struct Person {

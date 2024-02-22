@@ -1,4 +1,4 @@
-#![cfg(feature = "serde-codec")]
+#![cfg(feature = "serde")]
 
 extern crate alloc;
 
@@ -7,8 +7,8 @@ use core::convert::TryFrom;
 
 use serde_test::{assert_ser_tokens, Token};
 
-use libipld_core::cid::{serde::CID_SERDE_PRIVATE_IDENTIFIER, Cid};
-use libipld_core::ipld::Ipld;
+use ipld_core::cid::{serde::CID_SERDE_PRIVATE_IDENTIFIER, Cid};
+use ipld_core::ipld::Ipld;
 
 #[test]
 fn ipld_serialize_null() {
