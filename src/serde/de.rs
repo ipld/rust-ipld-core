@@ -5,7 +5,7 @@ use cid::serde::{BytesToCidVisitor, CID_SERDE_PRIVATE_IDENTIFIER};
 use cid::Cid;
 use serde::{
     de::{self, IntoDeserializer},
-    forward_to_deserialize_any,
+    forward_to_deserialize_any, Deserialize,
 };
 
 use crate::error::SerdeError;
@@ -136,6 +136,22 @@ impl<'de> de::Deserialize<'de> for Ipld {
 
             #[inline]
             fn visit_none<E>(self) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(Ipld::Null)
+            }
+
+            #[inline]
+            fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: de::Deserializer<'de>,
+            {
+                Deserialize::deserialize(deserializer)
+            }
+
+            #[inline]
+            fn visit_unit<E>(self) -> Result<Self::Value, E>
             where
                 E: de::Error,
             {
