@@ -11,7 +11,20 @@ use core::fmt;
 
 use cid::Cid;
 
-use crate::error::{AccessError, KindErrorType};
+use crate::error::KindErrorType;
+
+/// Error when accessing IPLD List or Map elements.
+#[derive(Clone, Debug)]
+pub struct AccessError(String);
+
+impl fmt::Display for AccessError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "access error: {}", self.0)
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for AccessError {}
 
 /// Ipld
 #[derive(Clone, PartialEq)]
@@ -104,10 +117,10 @@ impl<'a> TryFrom<IpldIndex<'a>> for usize {
             IpldIndex::List(i) => i,
             IpldIndex::Map(ref key) => key
                 .parse()
-                .map_err(|_| AccessError::new(format!("cannot parse into integer: {}", key)))?,
+                .map_err(|_| AccessError(format!("cannot parse into integer: {}", key)))?,
             IpldIndex::MapRef(key) => key
                 .parse()
-                .map_err(|_| AccessError::new(format!("cannot parse into integer: {}", key)))?,
+                .map_err(|_| AccessError(format!("cannot parse into integer: {}", key)))?,
         };
         Ok(parsed)
     }
@@ -133,7 +146,7 @@ impl Ipld {
                 if parsed_index < list.len() {
                     Ok(list.swap_remove(parsed_index))
                 } else {
-                    Err(AccessError::new(format!(
+                    Err(AccessError(format!(
                         "index out of bounds: {}",
                         parsed_index
                     )))
@@ -142,9 +155,9 @@ impl Ipld {
             Ipld::Map(ref mut map) => {
                 let key = String::from(index);
                 map.remove(&key)
-                    .ok_or_else(|| AccessError::new(format!("key not found: {}", key)))
+                    .ok_or_else(|| AccessError(format!("key not found: {}", key)))
             }
-            _ => Err(AccessError::new(format!(
+            _ => Err(AccessError(format!(
                 "expected IPLD List or Map but found: {:?}",
                 Into::<KindErrorType>::into(self)
             ))),
@@ -158,14 +171,14 @@ impl Ipld {
             Ipld::List(list) => {
                 let parsed_index = usize::try_from(index)?;
                 list.get(parsed_index)
-                    .ok_or_else(|| AccessError::new(format!("index not found: {}", parsed_index)))
+                    .ok_or_else(|| AccessError(format!("index not found: {}", parsed_index)))
             }
             Ipld::Map(map) => {
                 let key = String::from(index);
                 map.get(&key)
-                    .ok_or_else(|| AccessError::new(format!("key not found: {}", key)))
+                    .ok_or_else(|| AccessError(format!("key not found: {}", key)))
             }
-            _ => Err(AccessError::new(format!(
+            _ => Err(AccessError(format!(
                 "expected IPLD List or Map but found: {:?}",
                 Into::<KindErrorType>::into(self)
             ))),

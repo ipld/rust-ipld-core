@@ -6,12 +6,61 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
+use core::fmt;
 
 use crate::{cid::Cid, ipld::Ipld};
 
 #[cfg(feature = "std")]
 //use crate::error::{Error, TypeError, TypeErrorType};
-use crate::error::{ConversionError, KindErrorType};
+use crate::error::KindErrorType;
+
+/// Error used for converting from and into [`crate::ipld::Ipld`].
+#[derive(Clone, Debug)]
+pub enum ConversionError {
+    /// Error when the IPLD kind wasn't the one we expected.
+    WrongIpldKind {
+        /// The expected type.
+        expected: KindErrorType,
+        /// The actual type.
+        found: KindErrorType,
+    },
+    /// Error when the given Ipld kind cannot be converted into a certain value type.
+    FromIpld {
+        /// The IPLD kind trying to convert from.
+        from: KindErrorType,
+        /// The type trying to convert into.
+        into: &'static str,
+    },
+    /// Error when a certain map or list element cannot be accessed.
+    Access(String),
+}
+
+impl fmt::Display for ConversionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::WrongIpldKind { expected, found } => {
+                write!(
+                    formatter,
+                    "kind error: expected {:?} but found {:?}",
+                    expected, found
+                )
+            }
+            Self::FromIpld { from, into } => {
+                write!(
+                    formatter,
+                    "conversion error: cannot convert {:?} into {}",
+                    from, into
+                )
+            }
+            Self::Access(error) => {
+                write!(formatter, "access error: {}", error)
+            }
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for ConversionError {}
 
 #[cfg(feature = "std")]
 impl TryFrom<Ipld> for () {
