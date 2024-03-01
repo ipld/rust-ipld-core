@@ -4,7 +4,7 @@ version = "0.2.0"
 authors = [
     "Volker Mische <volker.mische@gmail.com>"
 ]
-repository = "https://github.com/vmx/ipld-core"
+repository = "https://github.com/ipld/rust-ipld-core"
 edition = "2021"
 description = "IPLD core types"
 license = "MIT OR Apache-2.0"
