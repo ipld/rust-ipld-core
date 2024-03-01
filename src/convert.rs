@@ -10,20 +10,20 @@ use alloc::{
 use crate::{cid::Cid, ipld::Ipld};
 
 #[cfg(feature = "std")]
-use crate::error::{Error, TypeError, TypeErrorType};
+//use crate::error::{Error, TypeError, TypeErrorType};
+use crate::error::{ConversionError, KindErrorType};
 
 #[cfg(feature = "std")]
 impl TryFrom<Ipld> for () {
-    type Error = Error;
+    type Error = ConversionError;
 
     fn try_from(ipld: Ipld) -> Result<Self, Self::Error> {
         match ipld {
             Ipld::Null => Ok(()),
-            _ => Err(TypeError {
-                expected: TypeErrorType::Null,
+            _ => Err(ConversionError::WrongIpldKind {
+                expected: KindErrorType::Null,
                 found: ipld.into(),
-            }
-            .into()),
+            }),
         }
     }
 }
@@ -32,17 +32,21 @@ impl TryFrom<Ipld> for () {
 macro_rules! derive_try_from_ipld_option {
     ($enum:ident, $ty:ty) => {
         impl TryFrom<Ipld> for Option<$ty> {
-            type Error = Error;
+            type Error = ConversionError;
 
             fn try_from(ipld: Ipld) -> Result<Self, Self::Error> {
                 match ipld {
                     Ipld::Null => Ok(None),
-                    Ipld::$enum(value) => Ok(Some(value.try_into()?)),
-                    _ => Err(TypeError {
-                        expected: TypeErrorType::$enum,
+                    Ipld::$enum(value) => Ok(Some(value.try_into().map_err(|_| {
+                        ConversionError::FromIpld {
+                            from: KindErrorType::$enum,
+                            into: stringify!($yt),
+                        }
+                    })?)),
+                    _ => Err(ConversionError::WrongIpldKind {
+                        expected: KindErrorType::$enum,
                         found: ipld.into(),
-                    }
-                    .into()),
+                    }),
                 }
             }
         }
@@ -53,16 +57,21 @@ macro_rules! derive_try_from_ipld_option {
 macro_rules! derive_try_from_ipld {
     ($enum:ident, $ty:ty) => {
         impl TryFrom<Ipld> for $ty {
-            type Error = Error;
+            type Error = ConversionError;
 
             fn try_from(ipld: Ipld) -> Result<Self, Self::Error> {
                 match ipld {
-                    Ipld::$enum(value) => Ok(value.try_into()?),
-                    _ => Err(TypeError {
-                        expected: TypeErrorType::$enum,
-                        found: ipld.into(),
+                    Ipld::$enum(value) => {
+                        Ok(value.try_into().map_err(|_| ConversionError::FromIpld {
+                            from: KindErrorType::$enum,
+                            into: stringify!($yt),
+                        })?)
                     }
-                    .into()),
+
+                    _ => Err(ConversionError::WrongIpldKind {
+                        expected: KindErrorType::$enum,
+                        found: ipld.into(),
+                    }),
                 }
             }
         }

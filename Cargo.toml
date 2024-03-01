@@ -13,14 +13,13 @@ categories = ["data-structures", "encoding"]
 [features]
 default = ["std"]
 # Makes the error implement `std::error::Error`.
-std = ["anyhow/std", "cid/std", "serde?/std"]
+std = ["cid/std", "serde?/std"]
 # Enables support for Serde serialization into/deserialization from the `Ipld` enum.
 serde = ["dep:serde", "cid/serde-codec"]
 # Enables support for property based testing.
 arb = ["dep:quickcheck", "cid/arb"]
 
 [dependencies]
-anyhow = { version = "1.0.40", default-features = false }
 cid = { version = "0.11.0", default-features = false, features = ["alloc"] }
 quickcheck = { version = "1.0", optional = true }
 serde = { version = "1.0.195", default-features = false, features = ["alloc"], optional = true }

@@ -2,10 +2,9 @@
 use alloc::string::String;
 #[cfg(feature = "serde")]
 use alloc::string::ToString;
+use core::fmt;
 
-use crate::ipld::{Ipld, IpldIndex};
-pub use anyhow::{Error, Result};
-#[cfg(feature = "std")]
+use crate::ipld::Ipld;
 
 /// Error during Serde operations.
 #[cfg(feature = "serde")]
@@ -13,9 +12,9 @@ pub use anyhow::{Error, Result};
 pub struct SerdeError(String);
 
 #[cfg(feature = "serde")]
-impl core::fmt::Display for SerdeError {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Serde error: {}", self.0)
+impl fmt::Display for SerdeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "serde error: {}", self.0)
     }
 }
 
@@ -28,7 +27,7 @@ impl serde::de::Error for SerdeError {
 
 #[cfg(feature = "serde")]
 impl serde::ser::Error for SerdeError {
-    fn custom<T: core::fmt::Display>(msg: T) -> Self {
+    fn custom<T: fmt::Display>(msg: T) -> Self {
         Self(msg.to_string())
     }
 }
@@ -36,37 +35,59 @@ impl serde::ser::Error for SerdeError {
 #[cfg(feature = "serde")]
 impl serde::ser::StdError for SerdeError {}
 
-/// Type error.
+/// Error used for converting from and into [`crate::ipld::Ipld`].
 #[derive(Clone, Debug)]
-pub struct TypeError {
-    /// The expected type.
-    pub expected: TypeErrorType,
-    /// The actual type.
-    pub found: TypeErrorType,
+pub enum ConversionError {
+    /// Error when the IPLD kind wasn't the one we expected.
+    WrongIpldKind {
+        /// The expected type.
+        expected: KindErrorType,
+        /// The actual type.
+        found: KindErrorType,
+    },
+    /// Error when the given Ipld kind cannot be converted into a certain value type.
+    FromIpld {
+        /// The IPLD kind trying to convert from.
+        from: KindErrorType,
+        /// The type trying to convert into.
+        into: &'static str,
+    },
+    /// Error when a certain map or list element cannot be accessed.
+    Access(String),
 }
 
-impl TypeError {
-    /// Creates a new type error.
-    pub fn new<A: Into<TypeErrorType>, B: Into<TypeErrorType>>(expected: A, found: B) -> Self {
-        Self {
-            expected: expected.into(),
-            found: found.into(),
+impl fmt::Display for ConversionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::WrongIpldKind { expected, found } => {
+                write!(
+                    formatter,
+                    "kind error: expected {:?} but found {:?}",
+                    expected, found
+                )
+            }
+            Self::FromIpld { from, into } => {
+                write!(
+                    formatter,
+                    "conversion error: cannot convert {:?} into {}",
+                    from, into
+                )
+            }
+            Self::Access(error) => {
+                write!(formatter, "access error: {}", error)
+            }
         }
     }
 }
 
-impl core::fmt::Display for TypeError {
-    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "Expected {:?} but found {:?}", self.expected, self.found)
-    }
-}
-
 #[cfg(feature = "std")]
-impl std::error::Error for TypeError {}
+impl std::error::Error for ConversionError {}
 
-/// Type error type.
+/// Error types for the IPLD kinds.
+///
+/// It maps the IPLD kinds into a unity-only enum.
 #[derive(Clone, Debug)]
-pub enum TypeErrorType {
+pub enum KindErrorType {
     /// Null type.
     Null,
     /// Boolean type.
@@ -85,19 +106,15 @@ pub enum TypeErrorType {
     Map,
     /// Link type.
     Link,
-    /// Key type.
-    Key(String),
-    /// Index type.
-    Index(usize),
 }
 
-impl From<Ipld> for TypeErrorType {
+impl From<Ipld> for KindErrorType {
     fn from(ipld: Ipld) -> Self {
         Self::from(&ipld)
     }
 }
 
-impl From<&Ipld> for TypeErrorType {
+impl From<&Ipld> for KindErrorType {
     fn from(ipld: &Ipld) -> Self {
         match ipld {
             Ipld::Null => Self::Null,
@@ -113,12 +130,22 @@ impl From<&Ipld> for TypeErrorType {
     }
 }
 
-impl From<IpldIndex<'_>> for TypeErrorType {
-    fn from(index: IpldIndex<'_>) -> Self {
-        match index {
-            IpldIndex::List(i) => Self::Index(i),
-            IpldIndex::Map(s) => Self::Key(s),
-            IpldIndex::MapRef(s) => Self::Key(s.into()),
-        }
+/// Error when accessing IPLD List or Map elements.
+#[derive(Clone, Debug)]
+pub struct AccessError(String);
+
+impl AccessError {
+    /// Create a new error.
+    pub fn new(error: String) -> Self {
+        Self(error)
     }
 }
+
+impl fmt::Display for AccessError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "access error: {}", self.0)
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for AccessError {}

@@ -11,7 +11,7 @@ use core::fmt;
 
 use cid::Cid;
 
-use crate::error::TypeError;
+use crate::error::{AccessError, KindErrorType};
 
 /// Ipld
 #[derive(Clone, PartialEq)]
@@ -66,7 +66,9 @@ impl fmt::Debug for Ipld {
     }
 }
 
-/// An index into ipld
+/// An index into IPLD.
+///
+/// It's used for accessing IPLD List and Map elements.
 pub enum IpldIndex<'a> {
     /// An index into an ipld list.
     List(usize),
@@ -94,53 +96,80 @@ impl<'a> From<&'a str> for IpldIndex<'a> {
     }
 }
 
+impl<'a> TryFrom<IpldIndex<'a>> for usize {
+    type Error = AccessError;
+
+    fn try_from(index: IpldIndex<'a>) -> Result<Self, Self::Error> {
+        let parsed = match index {
+            IpldIndex::List(i) => i,
+            IpldIndex::Map(ref key) => key
+                .parse()
+                .map_err(|_| AccessError::new(format!("cannot parse into integer: {}", key)))?,
+            IpldIndex::MapRef(key) => key
+                .parse()
+                .map_err(|_| AccessError::new(format!("cannot parse into integer: {}", key)))?,
+        };
+        Ok(parsed)
+    }
+}
+
+impl<'a> From<IpldIndex<'a>> for String {
+    fn from(index: IpldIndex<'a>) -> Self {
+        match index {
+            IpldIndex::Map(ref key) => key.to_string(),
+            IpldIndex::MapRef(key) => key.to_string(),
+            IpldIndex::List(i) => i.to_string(),
+        }
+    }
+}
+
 impl Ipld {
     /// Destructs an ipld list or map
-    pub fn take<'a, T: Into<IpldIndex<'a>>>(mut self, index: T) -> Result<Self, TypeError> {
+    pub fn take<'a, T: Into<IpldIndex<'a>>>(mut self, index: T) -> Result<Self, AccessError> {
         let index = index.into();
-        let ipld = match &mut self {
-            Ipld::List(ref mut l) => match index {
-                IpldIndex::List(i) => Some(i),
-                IpldIndex::Map(ref key) => key.parse().ok(),
-                IpldIndex::MapRef(key) => key.parse().ok(),
-            }
-            .map(|i| {
-                if i < l.len() {
-                    Some(l.swap_remove(i))
+        match &mut self {
+            Ipld::List(ref mut list) => {
+                let parsed_index = usize::try_from(index)?;
+                if parsed_index < list.len() {
+                    Ok(list.swap_remove(parsed_index))
                 } else {
-                    None
+                    Err(AccessError::new(format!(
+                        "index out of bounds: {}",
+                        parsed_index
+                    )))
                 }
-            }),
-            Ipld::Map(ref mut m) => match index {
-                IpldIndex::Map(ref key) => Some(m.remove(key)),
-                IpldIndex::MapRef(key) => Some(m.remove(key)),
-                IpldIndex::List(i) => Some(m.remove(&i.to_string())),
-            },
-            _ => None,
-        };
-        ipld.unwrap_or_default()
-            .ok_or_else(|| TypeError::new(index, self))
+            }
+            Ipld::Map(ref mut map) => {
+                let key = String::from(index);
+                map.remove(&key)
+                    .ok_or_else(|| AccessError::new(format!("key not found: {}", key)))
+            }
+            _ => Err(AccessError::new(format!(
+                "expected IPLD List or Map but found: {:?}",
+                Into::<KindErrorType>::into(self)
+            ))),
+        }
     }
 
     /// Indexes into an ipld list or map.
-    pub fn get<'a, T: Into<IpldIndex<'a>>>(&self, index: T) -> Result<&Self, TypeError> {
+    pub fn get<'a, T: Into<IpldIndex<'a>>>(&self, index: T) -> Result<&Self, AccessError> {
         let index = index.into();
-        let ipld = match self {
-            Ipld::List(l) => match index {
-                IpldIndex::List(i) => Some(i),
-                IpldIndex::Map(ref key) => key.parse().ok(),
-                IpldIndex::MapRef(key) => key.parse().ok(),
+        match self {
+            Ipld::List(list) => {
+                let parsed_index = usize::try_from(index)?;
+                list.get(parsed_index)
+                    .ok_or_else(|| AccessError::new(format!("index not found: {}", parsed_index)))
             }
-            .map(|i| l.get(i)),
-            Ipld::Map(m) => match index {
-                IpldIndex::Map(ref key) => Some(m.get(key)),
-                IpldIndex::MapRef(key) => Some(m.get(key)),
-                IpldIndex::List(i) => Some(m.get(&i.to_string())),
-            },
-            _ => None,
-        };
-        ipld.unwrap_or_default()
-            .ok_or_else(|| TypeError::new(index, self))
+            Ipld::Map(map) => {
+                let key = String::from(index);
+                map.get(&key)
+                    .ok_or_else(|| AccessError::new(format!("key not found: {}", key)))
+            }
+            _ => Err(AccessError::new(format!(
+                "expected IPLD List or Map but found: {:?}",
+                Into::<KindErrorType>::into(self)
+            ))),
+        }
     }
 
     /// Returns an iterator.
