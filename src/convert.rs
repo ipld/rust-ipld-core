@@ -15,6 +15,7 @@ use crate::{
 
 /// Error used for converting from and into [`crate::ipld::Ipld`].
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub enum ConversionError {
     /// Error when the IPLD kind wasn't the one we expected.
     WrongIpldKind {
