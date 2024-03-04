@@ -6,9 +6,12 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
-use core::fmt;
+use core::{any::TypeId, fmt};
 
-use crate::{cid::Cid, ipld::{Ipld, IpldKind}};
+use crate::{
+    cid::Cid,
+    ipld::{Ipld, IpldKind},
+};
 
 /// Error used for converting from and into [`crate::ipld::Ipld`].
 #[derive(Clone, Debug)]
@@ -25,7 +28,7 @@ pub enum ConversionError {
         /// The IPLD kind trying to convert from.
         from: IpldKind,
         /// The type trying to convert into.
-        into: &'static str,
+        into: TypeId,
     },
 }
 
@@ -42,7 +45,7 @@ impl fmt::Display for ConversionError {
             Self::FromIpld { from, into } => {
                 write!(
                     formatter,
-                    "conversion error: cannot convert {:?} into {}",
+                    "conversion error: cannot convert {:?} into {:?}",
                     from, into
                 )
             }
@@ -77,7 +80,7 @@ macro_rules! derive_try_from_ipld_option {
                     Ipld::$enum(value) => Ok(Some(value.try_into().map_err(|_| {
                         ConversionError::FromIpld {
                             from: IpldKind::$enum,
-                            into: stringify!($ty),
+                            into: TypeId::of::<$ty>(),
                         }
                     })?)),
                     _ => Err(ConversionError::WrongIpldKind {
@@ -101,7 +104,7 @@ macro_rules! derive_try_from_ipld {
                     Ipld::$enum(value) => {
                         Ok(value.try_into().map_err(|_| ConversionError::FromIpld {
                             from: IpldKind::$enum,
-                            into: stringify!($ty),
+                            into: TypeId::of::<$ty>(),
                         })?)
                     }
 
