@@ -11,8 +11,7 @@ use core::fmt;
 use crate::{cid::Cid, ipld::Ipld};
 
 #[cfg(feature = "std")]
-//use crate::error::{Error, TypeError, TypeErrorType};
-use crate::error::KindErrorType;
+use crate::ipld::IpldKind;
 
 /// Error used for converting from and into [`crate::ipld::Ipld`].
 #[derive(Clone, Debug)]
@@ -20,14 +19,14 @@ pub enum ConversionError {
     /// Error when the IPLD kind wasn't the one we expected.
     WrongIpldKind {
         /// The expected type.
-        expected: KindErrorType,
+        expected: IpldKind,
         /// The actual type.
-        found: KindErrorType,
+        found: IpldKind,
     },
     /// Error when the given Ipld kind cannot be converted into a certain value type.
     FromIpld {
         /// The IPLD kind trying to convert from.
-        from: KindErrorType,
+        from: IpldKind,
         /// The type trying to convert into.
         into: &'static str,
     },
@@ -70,8 +69,8 @@ impl TryFrom<Ipld> for () {
         match ipld {
             Ipld::Null => Ok(()),
             _ => Err(ConversionError::WrongIpldKind {
-                expected: KindErrorType::Null,
-                found: ipld.into(),
+                expected: IpldKind::Null,
+                found: IpldKind::from_ipld(&ipld),
             }),
         }
     }
@@ -88,13 +87,13 @@ macro_rules! derive_try_from_ipld_option {
                     Ipld::Null => Ok(None),
                     Ipld::$enum(value) => Ok(Some(value.try_into().map_err(|_| {
                         ConversionError::FromIpld {
-                            from: KindErrorType::$enum,
-                            into: stringify!($yt),
+                            from: IpldKind::$enum,
+                            into: stringify!($ty),
                         }
                     })?)),
                     _ => Err(ConversionError::WrongIpldKind {
-                        expected: KindErrorType::$enum,
-                        found: ipld.into(),
+                        expected: IpldKind::$enum,
+                        found: IpldKind::from_ipld(&ipld),
                     }),
                 }
             }
@@ -112,14 +111,14 @@ macro_rules! derive_try_from_ipld {
                 match ipld {
                     Ipld::$enum(value) => {
                         Ok(value.try_into().map_err(|_| ConversionError::FromIpld {
-                            from: KindErrorType::$enum,
-                            into: stringify!($yt),
+                            from: IpldKind::$enum,
+                            into: stringify!($ty),
                         })?)
                     }
 
                     _ => Err(ConversionError::WrongIpldKind {
-                        expected: KindErrorType::$enum,
-                        found: ipld.into(),
+                        expected: IpldKind::$enum,
+                        found: IpldKind::from_ipld(&ipld),
                     }),
                 }
             }

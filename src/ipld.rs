@@ -11,8 +11,6 @@ use core::fmt;
 
 use cid::Cid;
 
-use crate::error::KindErrorType;
-
 /// Error when accessing IPLD List or Map elements.
 #[derive(Clone, Debug)]
 pub struct AccessError(String);
@@ -75,6 +73,52 @@ impl fmt::Debug for Ipld {
                 Self::Map(m) => write!(f, "{:?}", m),
                 Self::Link(cid) => write!(f, "{}", cid),
             }
+        }
+    }
+}
+
+/// IPLD Kind information without the actual value.
+///
+/// Sometimes it's useful to know the kind of an Ipld object without the actual value, e.g. for
+/// error reporting. Those kinds can be a unity-only enum.
+#[derive(Clone, Debug)]
+pub enum IpldKind {
+    /// Null type.
+    Null,
+    /// Boolean type.
+    Bool,
+    /// Integer type.
+    Integer,
+    /// Float type.
+    Float,
+    /// String type.
+    String,
+    /// Bytes type.
+    Bytes,
+    /// List type.
+    List,
+    /// Map type.
+    Map,
+    /// Link type.
+    Link,
+}
+
+impl IpldKind {
+    /// Convert from an [`Ipld`] object into its kind without any associated values.
+    ///
+    /// This is intentionally not implemented via `From<Ipld>` to prevent accidental conversions by
+    /// making it more explicit.
+    pub fn from_ipld(ipld: &Ipld) -> Self {
+        match ipld {
+            Ipld::Null => Self::Null,
+            Ipld::Bool(_) => Self::Bool,
+            Ipld::Integer(_) => Self::Integer,
+            Ipld::Float(_) => Self::Float,
+            Ipld::String(_) => Self::String,
+            Ipld::Bytes(_) => Self::Bytes,
+            Ipld::List(_) => Self::List,
+            Ipld::Map(_) => Self::Map,
+            Ipld::Link(_) => Self::Link,
         }
     }
 }
@@ -157,9 +201,9 @@ impl Ipld {
                 map.remove(&key)
                     .ok_or_else(|| AccessError(format!("key not found: {}", key)))
             }
-            _ => Err(AccessError(format!(
+            other => Err(AccessError(format!(
                 "expected IPLD List or Map but found: {:?}",
-                Into::<KindErrorType>::into(self)
+                IpldKind::from_ipld(other)
             ))),
         }
     }
@@ -178,9 +222,9 @@ impl Ipld {
                 map.get(&key)
                     .ok_or_else(|| AccessError(format!("key not found: {}", key)))
             }
-            _ => Err(AccessError(format!(
+            other => Err(AccessError(format!(
                 "expected IPLD List or Map but found: {:?}",
-                Into::<KindErrorType>::into(self)
+                IpldKind::from_ipld(other)
             ))),
         }
     }
