@@ -3,7 +3,6 @@ use alloc::{
     borrow::ToOwned,
     boxed::Box,
     collections::BTreeMap,
-    format,
     string::{String, ToString},
     vec,
     vec::Vec,
@@ -16,14 +15,17 @@ use cid::Cid;
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum AccessError {
-    /// Error message describing the error.
-    Message(String),
+    /// Error when key cannot be parsed into an integer.
+    ParseInteger(String),
+    /// Error when the input wasn't an IPLD List or Map.
+    WrongKind(IpldKind),
 }
 
 impl fmt::Display for AccessError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Message(message) => write!(f, "access error: {}", message),
+            Self::ParseInteger(key) => write!(f, "cannot parse key into integer: {}", key),
+            Self::WrongKind(kind) => write!(f, "expected IPLD List or Map but found: {:?}", kind),
         }
     }
 }
@@ -168,10 +170,10 @@ impl<'a> TryFrom<IpldIndex<'a>> for usize {
             IpldIndex::List(i) => i,
             IpldIndex::Map(ref key) => key
                 .parse()
-                .map_err(|_| AccessError::Message(format!("cannot parse into integer: {}", key)))?,
+                .map_err(|_| AccessError::ParseInteger(key.to_string()))?,
             IpldIndex::MapRef(key) => key
                 .parse()
-                .map_err(|_| AccessError::Message(format!("cannot parse into integer: {}", key)))?,
+                .map_err(|_| AccessError::ParseInteger(key.to_string()))?,
         };
         Ok(parsed)
     }
@@ -189,51 +191,41 @@ impl<'a> From<IpldIndex<'a>> for String {
 
 impl Ipld {
     /// Destructs an ipld list or map
-    pub fn take<'a, T: Into<IpldIndex<'a>>>(mut self, index: T) -> Result<Self, AccessError> {
+    pub fn take<'a, T: Into<IpldIndex<'a>>>(
+        mut self,
+        index: T,
+    ) -> Result<Option<Self>, AccessError> {
         let index = index.into();
         match &mut self {
             Ipld::List(ref mut list) => {
                 let parsed_index = usize::try_from(index)?;
                 if parsed_index < list.len() {
-                    Ok(list.swap_remove(parsed_index))
+                    Ok(Some(list.swap_remove(parsed_index)))
                 } else {
-                    Err(AccessError::Message(format!(
-                        "index out of bounds: {}",
-                        parsed_index
-                    )))
+                    Ok(None)
                 }
             }
             Ipld::Map(ref mut map) => {
                 let key = String::from(index);
-                map.remove(&key)
-                    .ok_or_else(|| AccessError::Message(format!("key not found: {}", key)))
+                Ok(map.remove(&key))
             }
-            other => Err(AccessError::Message(format!(
-                "expected IPLD List or Map but found: {:?}",
-                IpldKind::from_ipld(other)
-            ))),
+            other => Err(AccessError::WrongKind(IpldKind::from_ipld(other))),
         }
     }
 
     /// Indexes into an ipld list or map.
-    pub fn get<'a, T: Into<IpldIndex<'a>>>(&self, index: T) -> Result<&Self, AccessError> {
+    pub fn get<'a, T: Into<IpldIndex<'a>>>(&self, index: T) -> Result<Option<&Self>, AccessError> {
         let index = index.into();
         match self {
             Ipld::List(list) => {
                 let parsed_index = usize::try_from(index)?;
-                list.get(parsed_index).ok_or_else(|| {
-                    AccessError::Message(format!("index not found: {}", parsed_index))
-                })
+                Ok(list.get(parsed_index))
             }
             Ipld::Map(map) => {
                 let key = String::from(index);
-                map.get(&key)
-                    .ok_or_else(|| AccessError::Message(format!("key not found: {}", key)))
+                Ok(map.get(&key))
             }
-            other => Err(AccessError::Message(format!(
-                "expected IPLD List or Map but found: {:?}",
-                IpldKind::from_ipld(other)
-            ))),
+            other => Err(AccessError::WrongKind(IpldKind::from_ipld(other))),
         }
     }
 
@@ -347,30 +339,30 @@ mod tests {
     #[test]
     fn test_take() {
         let ipld = Ipld::List(vec![Ipld::Integer(0), Ipld::Integer(1), Ipld::Integer(2)]);
-        assert_eq!(ipld.clone().take(0).unwrap(), Ipld::Integer(0));
-        assert_eq!(ipld.clone().take(1).unwrap(), Ipld::Integer(1));
-        assert_eq!(ipld.take(2).unwrap(), Ipld::Integer(2));
+        assert_eq!(ipld.clone().take(0).unwrap(), Some(Ipld::Integer(0)));
+        assert_eq!(ipld.clone().take(1).unwrap(), Some(Ipld::Integer(1)));
+        assert_eq!(ipld.take(2).unwrap(), Some(Ipld::Integer(2)));
 
         let mut map = BTreeMap::new();
         map.insert("a".to_string(), Ipld::Integer(0));
         map.insert("b".to_string(), Ipld::Integer(1));
         map.insert("c".to_string(), Ipld::Integer(2));
         let ipld = Ipld::Map(map);
-        assert_eq!(ipld.take("a").unwrap(), Ipld::Integer(0));
+        assert_eq!(ipld.take("a").unwrap(), Some(Ipld::Integer(0)));
     }
 
     #[test]
     fn test_get() {
         let ipld = Ipld::List(vec![Ipld::Integer(0), Ipld::Integer(1), Ipld::Integer(2)]);
-        assert_eq!(ipld.get(0).unwrap(), &Ipld::Integer(0));
-        assert_eq!(ipld.get(1).unwrap(), &Ipld::Integer(1));
-        assert_eq!(ipld.get(2).unwrap(), &Ipld::Integer(2));
+        assert_eq!(ipld.get(0).unwrap(), Some(&Ipld::Integer(0)));
+        assert_eq!(ipld.get(1).unwrap(), Some(&Ipld::Integer(1)));
+        assert_eq!(ipld.get(2).unwrap(), Some(&Ipld::Integer(2)));
 
         let mut map = BTreeMap::new();
         map.insert("a".to_string(), Ipld::Integer(0));
         map.insert("b".to_string(), Ipld::Integer(1));
         map.insert("c".to_string(), Ipld::Integer(2));
         let ipld = Ipld::Map(map);
-        assert_eq!(ipld.get("a").unwrap(), &Ipld::Integer(0));
+        assert_eq!(ipld.get("a").unwrap(), Some(&Ipld::Integer(0)));
     }
 }
