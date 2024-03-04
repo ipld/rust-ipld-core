@@ -5,28 +5,36 @@
 mod de;
 mod ser;
 
+use core::fmt;
+
 pub use de::from_ipld;
 pub use ser::{to_ipld, Serializer};
 
 /// Error during Serde operations.
 #[derive(Clone, Debug)]
-pub struct SerdeError(String);
+#[non_exhaustive]
+pub enum SerdeError {
+    /// Error message describing the error.
+    Message(String),
+}
 
 impl fmt::Display for SerdeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "serde error: {}", self.0)
+        match self {
+            Self::Message(message) => write!(f, "serde error: {}", message),
+        }
     }
 }
 
 impl serde::de::Error for SerdeError {
-    fn custom<T: core::fmt::Display>(msg: T) -> Self {
-        Self(msg.to_string())
+    fn custom<T: fmt::Display>(message: T) -> Self {
+        Self::Message(message.to_string())
     }
 }
 
 impl serde::ser::Error for SerdeError {
-    fn custom<T: fmt::Display>(msg: T) -> Self {
-        Self(msg.to_string())
+    fn custom<T: fmt::Display>(message: T) -> Self {
+        Self::Message(message.to_string())
     }
 }
 

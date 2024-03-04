@@ -8,10 +8,7 @@ use alloc::{
 };
 use core::fmt;
 
-use crate::{cid::Cid, ipld::Ipld};
-
-#[cfg(feature = "std")]
-use crate::ipld::IpldKind;
+use crate::{cid::Cid, ipld::{Ipld, IpldKind}};
 
 /// Error used for converting from and into [`crate::ipld::Ipld`].
 #[derive(Clone, Debug)]
@@ -30,8 +27,6 @@ pub enum ConversionError {
         /// The type trying to convert into.
         into: &'static str,
     },
-    /// Error when a certain map or list element cannot be accessed.
-    Access(String),
 }
 
 impl fmt::Display for ConversionError {
@@ -51,15 +46,9 @@ impl fmt::Display for ConversionError {
                     from, into
                 )
             }
-            Self::Access(error) => {
-                write!(formatter, "access error: {}", error)
-            }
         }
     }
 }
-
-#[cfg(feature = "std")]
-impl std::error::Error for ConversionError {}
 
 #[cfg(feature = "std")]
 impl TryFrom<Ipld> for () {
