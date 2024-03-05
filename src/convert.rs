@@ -54,7 +54,6 @@ impl fmt::Display for ConversionError {
     }
 }
 
-#[cfg(feature = "std")]
 impl TryFrom<Ipld> for () {
     type Error = ConversionError;
 
@@ -69,7 +68,6 @@ impl TryFrom<Ipld> for () {
     }
 }
 
-#[cfg(feature = "std")]
 macro_rules! derive_try_from_ipld_option {
     ($enum:ident, $ty:ty) => {
         impl TryFrom<Ipld> for Option<$ty> {
@@ -94,7 +92,6 @@ macro_rules! derive_try_from_ipld_option {
     };
 }
 
-#[cfg(feature = "std")]
 macro_rules! derive_try_from_ipld {
     ($enum:ident, $ty:ty) => {
         impl TryFrom<Ipld> for $ty {
@@ -163,91 +160,53 @@ derive_into_ipld!(Map, BTreeMap<String, Ipld>, to_owned);
 derive_into_ipld!(Link, Cid, clone);
 derive_into_ipld!(Link, &Cid, to_owned);
 
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Bool, bool);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, i8);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, i16);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, i32);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, i64);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, i128);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, isize);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, u8);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, u16);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, u32);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, u64);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, u128);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, usize);
 
 //derive_from_ipld!(Float, f32); // User explicit conversion is prefered. Would implicitly lossily convert from f64.
 
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Float, f64);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(String, String);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Bytes, Vec<u8>);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(List, Vec<Ipld>);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Map, BTreeMap<String, Ipld>);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Link, Cid);
 
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Bool, bool);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, i8);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, i16);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, i32);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, i64);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, i128);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, isize);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, u8);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, u16);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, u32);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, u64);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, u128);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, usize);
 
 //derive_from_ipld_option!(Float, f32); // User explicit conversion is prefered. Would implicitly lossily convert from f64.
 
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Float, f64);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(String, String);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Bytes, Vec<u8>);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(List, Vec<Ipld>);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Map, BTreeMap<String, Ipld>);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Link, Cid);
 
-#[cfg(all(test, feature = "std"))]
+#[cfg(test)]
 mod tests {
     use alloc::collections::BTreeMap;
 
