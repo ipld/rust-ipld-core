@@ -37,9 +37,8 @@ impl serde::ser::StdError for SerdeError {}
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-    use std::convert::TryFrom;
-    use std::fmt;
+    use alloc::{collections::BTreeMap, string::String, vec, vec::Vec};
+    use core::fmt;
 
     use cid::serde::CID_SERDE_PRIVATE_IDENTIFIER;
     use cid::Cid;
