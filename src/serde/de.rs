@@ -762,5 +762,5 @@ fn error<S, T>(message: S) -> Result<T, SerdeError>
 where
     S: AsRef<str> + fmt::Display,
 {
-    Err(de::Error::custom(message))
+    Err(SerdeError::Deserialize(message.to_string()))
 }

@@ -14,27 +14,30 @@ pub use ser::{to_ipld, Serializer};
 #[derive(Clone, Debug)]
 #[non_exhaustive]
 pub enum SerdeError {
-    /// Error message describing the error.
-    Message(String),
+    /// Error message when deserializing.
+    Deserialize(String),
+    /// Error message when serializing.
+    Serialize(String),
 }
 
 impl fmt::Display for SerdeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Message(message) => write!(f, "serde error: {}", message),
+            Self::Deserialize(message) => write!(f, "serde deserialization error: {}", message),
+            Self::Serialize(message) => write!(f, "serde deserialization error: {}", message),
         }
     }
 }
 
 impl serde::de::Error for SerdeError {
     fn custom<T: fmt::Display>(message: T) -> Self {
-        Self::Message(message.to_string())
+        Self::Deserialize(message.to_string())
     }
 }
 
 impl serde::ser::Error for SerdeError {
     fn custom<T: fmt::Display>(message: T) -> Self {
-        Self::Message(message.to_string())
+        Self::Serialize(message.to_string())
     }
 }
 

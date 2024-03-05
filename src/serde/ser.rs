@@ -188,12 +188,14 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
-        Err(ser::Error::custom("Unit is not supported"))
+        Err(SerdeError::Serialize("Unit is not supported".to_string()))
     }
 
     #[inline]
     fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok, Self::Error> {
-        Err(ser::Error::custom("Unit structs are not supported"))
+        Err(SerdeError::Serialize(
+            "Unit structs are not supported".to_string(),
+        ))
     }
 
     #[inline]
@@ -219,7 +221,7 @@ impl serde::Serializer for Serializer {
         if name == CID_SERDE_PRIVATE_IDENTIFIER {
             if let Ok(Ipld::Bytes(bytes)) = ipld {
                 let cid = Cid::try_from(bytes)
-                    .map_err(|err| ser::Error::custom(format!("Invalid CID: {}", err)))?;
+                    .map_err(|err| SerdeError::Serialize(format!("Invalid CID: {}", err)))?;
                 return Ok(Self::Ok::Link(cid));
             }
         }
@@ -417,7 +419,9 @@ impl ser::SerializeMap for SerializeMap {
                 self.next_key = Some(string_key);
                 Ok(())
             }
-            _ => Err(ser::Error::custom("Map keys must be strings".to_string())),
+            _ => Err(SerdeError::Serialize(
+                "Map keys must be strings".to_string(),
+            )),
         }
     }
 
