@@ -14,14 +14,14 @@ use cid::Cid;
 /// Error when accessing IPLD List or Map elements.
 #[derive(Clone, Debug)]
 #[non_exhaustive]
-pub enum AccessError {
+pub enum IndexError {
     /// Error when key cannot be parsed into an integer.
     ParseInteger(String),
     /// Error when the input wasn't an IPLD List or Map.
     WrongKind(IpldKind),
 }
 
-impl fmt::Display for AccessError {
+impl fmt::Display for IndexError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::ParseInteger(key) => write!(f, "cannot parse key into integer: {}", key),
@@ -31,7 +31,7 @@ impl fmt::Display for AccessError {
 }
 
 #[cfg(feature = "std")]
-impl std::error::Error for AccessError {}
+impl std::error::Error for IndexError {}
 
 /// Ipld
 #[derive(Clone, PartialEq)]
@@ -143,17 +143,17 @@ impl<'a> From<&'a str> for IpldIndex<'a> {
 }
 
 impl<'a> TryFrom<IpldIndex<'a>> for usize {
-    type Error = AccessError;
+    type Error = IndexError;
 
     fn try_from(index: IpldIndex<'a>) -> Result<Self, Self::Error> {
         let parsed = match index {
             IpldIndex::List(i) => i,
             IpldIndex::Map(ref key) => key
                 .parse()
-                .map_err(|_| AccessError::ParseInteger(key.to_string()))?,
+                .map_err(|_| IndexError::ParseInteger(key.to_string()))?,
             IpldIndex::MapRef(key) => key
                 .parse()
-                .map_err(|_| AccessError::ParseInteger(key.to_string()))?,
+                .map_err(|_| IndexError::ParseInteger(key.to_string()))?,
         };
         Ok(parsed)
     }
@@ -192,7 +192,7 @@ impl Ipld {
     pub fn take<'a, T: Into<IpldIndex<'a>>>(
         mut self,
         index: T,
-    ) -> Result<Option<Self>, AccessError> {
+    ) -> Result<Option<Self>, IndexError> {
         let index = index.into();
         match &mut self {
             Ipld::List(ref mut list) => {
@@ -207,12 +207,12 @@ impl Ipld {
                 let key = String::from(index);
                 Ok(map.remove(&key))
             }
-            other => Err(AccessError::WrongKind(other.kind())),
+            other => Err(IndexError::WrongKind(other.kind())),
         }
     }
 
     /// Indexes into an ipld list or map.
-    pub fn get<'a, T: Into<IpldIndex<'a>>>(&self, index: T) -> Result<Option<&Self>, AccessError> {
+    pub fn get<'a, T: Into<IpldIndex<'a>>>(&self, index: T) -> Result<Option<&Self>, IndexError> {
         let index = index.into();
         match self {
             Ipld::List(list) => {
@@ -223,7 +223,7 @@ impl Ipld {
                 let key = String::from(index);
                 Ok(map.get(&key))
             }
-            other => Err(AccessError::WrongKind(other.kind())),
+            other => Err(IndexError::WrongKind(other.kind())),
         }
     }
 
