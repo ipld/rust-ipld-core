@@ -17,15 +17,13 @@ fn ipld_deserialize_null() {
 }
 
 #[test]
-#[should_panic(expected = "invalid type")]
-fn ipld_deserialize_null_not_as_unit() {
+fn ipld_deserialize_null_as_unit() {
     let ipld = Ipld::Null;
     assert_de_tokens(&ipld, &[Token::Unit]);
 }
 
 #[test]
-#[should_panic(expected = "invalid type")]
-fn ipld_deserialize_null_not_as_unit_struct() {
+fn ipld_deserialize_null_as_unit_struct() {
     let ipld = Ipld::Null;
     assert_de_tokens(&ipld, &[Token::UnitStruct { name: "foo" }]);
 }
