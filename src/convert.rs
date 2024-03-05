@@ -63,7 +63,7 @@ impl TryFrom<Ipld> for () {
             Ipld::Null => Ok(()),
             _ => Err(ConversionError::WrongIpldKind {
                 expected: IpldKind::Null,
-                found: IpldKind::from_ipld(&ipld),
+                found: ipld.kind(),
             }),
         }
     }
@@ -86,7 +86,7 @@ macro_rules! derive_try_from_ipld_option {
                     })?)),
                     _ => Err(ConversionError::WrongIpldKind {
                         expected: IpldKind::$enum,
-                        found: IpldKind::from_ipld(&ipld),
+                        found: ipld.kind(),
                     }),
                 }
             }
@@ -111,7 +111,7 @@ macro_rules! derive_try_from_ipld {
 
                     _ => Err(ConversionError::WrongIpldKind {
                         expected: IpldKind::$enum,
-                        found: IpldKind::from_ipld(&ipld),
+                        found: ipld.kind(),
                     }),
                 }
             }

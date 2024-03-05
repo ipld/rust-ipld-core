@@ -112,26 +112,6 @@ pub enum IpldKind {
     Link,
 }
 
-impl IpldKind {
-    /// Convert from an [`Ipld`] object into its kind without any associated values.
-    ///
-    /// This is intentionally not implemented via `From<Ipld>` to prevent accidental conversions by
-    /// making it more explicit.
-    pub fn from_ipld(ipld: &Ipld) -> Self {
-        match ipld {
-            Ipld::Null => Self::Null,
-            Ipld::Bool(_) => Self::Bool,
-            Ipld::Integer(_) => Self::Integer,
-            Ipld::Float(_) => Self::Float,
-            Ipld::String(_) => Self::String,
-            Ipld::Bytes(_) => Self::Bytes,
-            Ipld::List(_) => Self::List,
-            Ipld::Map(_) => Self::Map,
-            Ipld::Link(_) => Self::Link,
-        }
-    }
-}
-
 /// An index into IPLD.
 ///
 /// It's used for accessing IPLD List and Map elements.
@@ -190,6 +170,24 @@ impl<'a> From<IpldIndex<'a>> for String {
 }
 
 impl Ipld {
+    /// Convert from an [`Ipld`] object into its kind without any associated values.
+    ///
+    /// This is intentionally not implemented via `From<Ipld>` to prevent accidental conversions by
+    /// making it more explicit.
+    pub fn kind(&self) -> IpldKind {
+        match self {
+            Ipld::Null => IpldKind::Null,
+            Ipld::Bool(_) => IpldKind::Bool,
+            Ipld::Integer(_) => IpldKind::Integer,
+            Ipld::Float(_) => IpldKind::Float,
+            Ipld::String(_) => IpldKind::String,
+            Ipld::Bytes(_) => IpldKind::Bytes,
+            Ipld::List(_) => IpldKind::List,
+            Ipld::Map(_) => IpldKind::Map,
+            Ipld::Link(_) => IpldKind::Link,
+        }
+    }
+
     /// Destructs an ipld list or map
     pub fn take<'a, T: Into<IpldIndex<'a>>>(
         mut self,
@@ -209,7 +207,7 @@ impl Ipld {
                 let key = String::from(index);
                 Ok(map.remove(&key))
             }
-            other => Err(AccessError::WrongKind(IpldKind::from_ipld(other))),
+            other => Err(AccessError::WrongKind(other.kind())),
         }
     }
 
@@ -225,7 +223,7 @@ impl Ipld {
                 let key = String::from(index);
                 Ok(map.get(&key))
             }
-            other => Err(AccessError::WrongKind(IpldKind::from_ipld(other))),
+            other => Err(AccessError::WrongKind(other.kind())),
         }
     }
 
