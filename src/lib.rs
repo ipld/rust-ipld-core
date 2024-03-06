@@ -10,7 +10,6 @@
 extern crate alloc;
 
 pub mod convert;
-pub mod error;
 pub mod ipld;
 #[cfg(feature = "serde")]
 pub mod serde;

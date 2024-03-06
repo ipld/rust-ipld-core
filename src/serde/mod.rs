@@ -5,8 +5,35 @@
 mod de;
 mod ser;
 
+use alloc::string::{String, ToString};
+use core::fmt;
+
 pub use de::from_ipld;
 pub use ser::{to_ipld, Serializer};
+
+/// Error during Serde operations.
+#[derive(Clone, Debug)]
+pub struct SerdeError(String);
+
+impl fmt::Display for SerdeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "serde error: {}", self.0)
+    }
+}
+
+impl serde::de::Error for SerdeError {
+    fn custom<T: fmt::Display>(message: T) -> Self {
+        Self(message.to_string())
+    }
+}
+
+impl serde::ser::Error for SerdeError {
+    fn custom<T: fmt::Display>(message: T) -> Self {
+        Self(message.to_string())
+    }
+}
+
+impl serde::ser::StdError for SerdeError {}
 
 #[cfg(test)]
 mod tests {

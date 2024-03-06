@@ -11,7 +11,27 @@ use core::fmt;
 
 use cid::Cid;
 
-use crate::error::TypeError;
+/// Error when accessing IPLD List or Map elements.
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub enum IndexError {
+    /// Error when key cannot be parsed into an integer.
+    ParseInteger(String),
+    /// Error when the input wasn't an IPLD List or Map.
+    WrongKind(IpldKind),
+}
+
+impl fmt::Display for IndexError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ParseInteger(key) => write!(f, "cannot parse key into integer: {}", key),
+            Self::WrongKind(kind) => write!(f, "expected IPLD List or Map but found: {:?}", kind),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for IndexError {}
 
 /// Ipld
 #[derive(Clone, PartialEq)]
@@ -66,7 +86,35 @@ impl fmt::Debug for Ipld {
     }
 }
 
-/// An index into ipld
+/// IPLD Kind information without the actual value.
+///
+/// Sometimes it's useful to know the kind of an Ipld object without the actual value, e.g. for
+/// error reporting. Those kinds can be a unity-only enum.
+#[derive(Clone, Debug)]
+pub enum IpldKind {
+    /// Null type.
+    Null,
+    /// Boolean type.
+    Bool,
+    /// Integer type.
+    Integer,
+    /// Float type.
+    Float,
+    /// String type.
+    String,
+    /// Bytes type.
+    Bytes,
+    /// List type.
+    List,
+    /// Map type.
+    Map,
+    /// Link type.
+    Link,
+}
+
+/// An index into IPLD.
+///
+/// It's used for accessing IPLD List and Map elements.
 pub enum IpldIndex<'a> {
     /// An index into an ipld list.
     List(usize),
@@ -94,53 +142,89 @@ impl<'a> From<&'a str> for IpldIndex<'a> {
     }
 }
 
-impl Ipld {
-    /// Destructs an ipld list or map
-    pub fn take<'a, T: Into<IpldIndex<'a>>>(mut self, index: T) -> Result<Self, TypeError> {
-        let index = index.into();
-        let ipld = match &mut self {
-            Ipld::List(ref mut l) => match index {
-                IpldIndex::List(i) => Some(i),
-                IpldIndex::Map(ref key) => key.parse().ok(),
-                IpldIndex::MapRef(key) => key.parse().ok(),
-            }
-            .map(|i| {
-                if i < l.len() {
-                    Some(l.swap_remove(i))
-                } else {
-                    None
-                }
-            }),
-            Ipld::Map(ref mut m) => match index {
-                IpldIndex::Map(ref key) => Some(m.remove(key)),
-                IpldIndex::MapRef(key) => Some(m.remove(key)),
-                IpldIndex::List(i) => Some(m.remove(&i.to_string())),
-            },
-            _ => None,
+impl<'a> TryFrom<IpldIndex<'a>> for usize {
+    type Error = IndexError;
+
+    fn try_from(index: IpldIndex<'a>) -> Result<Self, Self::Error> {
+        let parsed = match index {
+            IpldIndex::List(i) => i,
+            IpldIndex::Map(ref key) => key
+                .parse()
+                .map_err(|_| IndexError::ParseInteger(key.to_string()))?,
+            IpldIndex::MapRef(key) => key
+                .parse()
+                .map_err(|_| IndexError::ParseInteger(key.to_string()))?,
         };
-        ipld.unwrap_or_default()
-            .ok_or_else(|| TypeError::new(index, self))
+        Ok(parsed)
+    }
+}
+
+impl<'a> From<IpldIndex<'a>> for String {
+    fn from(index: IpldIndex<'a>) -> Self {
+        match index {
+            IpldIndex::Map(ref key) => key.to_string(),
+            IpldIndex::MapRef(key) => key.to_string(),
+            IpldIndex::List(i) => i.to_string(),
+        }
+    }
+}
+
+impl Ipld {
+    /// Convert from an [`Ipld`] object into its kind without any associated values.
+    ///
+    /// This is intentionally not implemented via `From<Ipld>` to prevent accidental conversions by
+    /// making it more explicit.
+    pub fn kind(&self) -> IpldKind {
+        match self {
+            Ipld::Null => IpldKind::Null,
+            Ipld::Bool(_) => IpldKind::Bool,
+            Ipld::Integer(_) => IpldKind::Integer,
+            Ipld::Float(_) => IpldKind::Float,
+            Ipld::String(_) => IpldKind::String,
+            Ipld::Bytes(_) => IpldKind::Bytes,
+            Ipld::List(_) => IpldKind::List,
+            Ipld::Map(_) => IpldKind::Map,
+            Ipld::Link(_) => IpldKind::Link,
+        }
+    }
+
+    /// Destructs an ipld list or map
+    pub fn take<'a, T: Into<IpldIndex<'a>>>(
+        mut self,
+        index: T,
+    ) -> Result<Option<Self>, IndexError> {
+        let index = index.into();
+        match &mut self {
+            Ipld::List(ref mut list) => {
+                let parsed_index = usize::try_from(index)?;
+                if parsed_index < list.len() {
+                    Ok(Some(list.swap_remove(parsed_index)))
+                } else {
+                    Ok(None)
+                }
+            }
+            Ipld::Map(ref mut map) => {
+                let key = String::from(index);
+                Ok(map.remove(&key))
+            }
+            other => Err(IndexError::WrongKind(other.kind())),
+        }
     }
 
     /// Indexes into an ipld list or map.
-    pub fn get<'a, T: Into<IpldIndex<'a>>>(&self, index: T) -> Result<&Self, TypeError> {
+    pub fn get<'a, T: Into<IpldIndex<'a>>>(&self, index: T) -> Result<Option<&Self>, IndexError> {
         let index = index.into();
-        let ipld = match self {
-            Ipld::List(l) => match index {
-                IpldIndex::List(i) => Some(i),
-                IpldIndex::Map(ref key) => key.parse().ok(),
-                IpldIndex::MapRef(key) => key.parse().ok(),
+        match self {
+            Ipld::List(list) => {
+                let parsed_index = usize::try_from(index)?;
+                Ok(list.get(parsed_index))
             }
-            .map(|i| l.get(i)),
-            Ipld::Map(m) => match index {
-                IpldIndex::Map(ref key) => Some(m.get(key)),
-                IpldIndex::MapRef(key) => Some(m.get(key)),
-                IpldIndex::List(i) => Some(m.get(&i.to_string())),
-            },
-            _ => None,
-        };
-        ipld.unwrap_or_default()
-            .ok_or_else(|| TypeError::new(index, self))
+            Ipld::Map(map) => {
+                let key = String::from(index);
+                Ok(map.get(&key))
+            }
+            other => Err(IndexError::WrongKind(other.kind())),
+        }
     }
 
     /// Returns an iterator.
@@ -253,30 +337,30 @@ mod tests {
     #[test]
     fn test_take() {
         let ipld = Ipld::List(vec![Ipld::Integer(0), Ipld::Integer(1), Ipld::Integer(2)]);
-        assert_eq!(ipld.clone().take(0).unwrap(), Ipld::Integer(0));
-        assert_eq!(ipld.clone().take(1).unwrap(), Ipld::Integer(1));
-        assert_eq!(ipld.take(2).unwrap(), Ipld::Integer(2));
+        assert_eq!(ipld.clone().take(0).unwrap(), Some(Ipld::Integer(0)));
+        assert_eq!(ipld.clone().take(1).unwrap(), Some(Ipld::Integer(1)));
+        assert_eq!(ipld.take(2).unwrap(), Some(Ipld::Integer(2)));
 
         let mut map = BTreeMap::new();
         map.insert("a".to_string(), Ipld::Integer(0));
         map.insert("b".to_string(), Ipld::Integer(1));
         map.insert("c".to_string(), Ipld::Integer(2));
         let ipld = Ipld::Map(map);
-        assert_eq!(ipld.take("a").unwrap(), Ipld::Integer(0));
+        assert_eq!(ipld.take("a").unwrap(), Some(Ipld::Integer(0)));
     }
 
     #[test]
     fn test_get() {
         let ipld = Ipld::List(vec![Ipld::Integer(0), Ipld::Integer(1), Ipld::Integer(2)]);
-        assert_eq!(ipld.get(0).unwrap(), &Ipld::Integer(0));
-        assert_eq!(ipld.get(1).unwrap(), &Ipld::Integer(1));
-        assert_eq!(ipld.get(2).unwrap(), &Ipld::Integer(2));
+        assert_eq!(ipld.get(0).unwrap(), Some(&Ipld::Integer(0)));
+        assert_eq!(ipld.get(1).unwrap(), Some(&Ipld::Integer(1)));
+        assert_eq!(ipld.get(2).unwrap(), Some(&Ipld::Integer(2)));
 
         let mut map = BTreeMap::new();
         map.insert("a".to_string(), Ipld::Integer(0));
         map.insert("b".to_string(), Ipld::Integer(1));
         map.insert("c".to_string(), Ipld::Integer(2));
         let ipld = Ipld::Map(map);
-        assert_eq!(ipld.get("a").unwrap(), &Ipld::Integer(0));
+        assert_eq!(ipld.get("a").unwrap(), Some(&Ipld::Integer(0)));
     }
 }

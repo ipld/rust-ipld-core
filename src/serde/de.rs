@@ -8,8 +8,7 @@ use serde::{
     forward_to_deserialize_any, Deserialize,
 };
 
-use crate::error::SerdeError;
-use crate::ipld::Ipld;
+use crate::{ipld::Ipld, serde::SerdeError};
 
 /// Deserialize instances of [`crate::ipld::Ipld`].
 ///

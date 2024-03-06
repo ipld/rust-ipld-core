@@ -13,8 +13,7 @@ use cid::serde::CID_SERDE_PRIVATE_IDENTIFIER;
 use cid::Cid;
 use serde::ser;
 
-use crate::error::SerdeError;
-use crate::ipld::Ipld;
+use crate::{ipld::Ipld, serde::SerdeError};
 
 /// Serialize into instances of [`crate::ipld::Ipld`].
 ///

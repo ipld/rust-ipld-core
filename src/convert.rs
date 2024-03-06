@@ -6,63 +6,110 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
+use core::{any::TypeId, fmt};
 
-use crate::{cid::Cid, ipld::Ipld};
+use crate::{
+    cid::Cid,
+    ipld::{Ipld, IpldKind},
+};
 
-#[cfg(feature = "std")]
-use crate::error::{Error, TypeError, TypeErrorType};
+/// Error used for converting from and into [`crate::ipld::Ipld`].
+#[derive(Clone, Debug)]
+#[non_exhaustive]
+pub enum ConversionError {
+    /// Error when the IPLD kind wasn't the one we expected.
+    WrongIpldKind {
+        /// The expected type.
+        expected: IpldKind,
+        /// The actual type.
+        found: IpldKind,
+    },
+    /// Error when the given Ipld kind cannot be converted into a certain value type.
+    FromIpld {
+        /// The IPLD kind trying to convert from.
+        from: IpldKind,
+        /// The type trying to convert into.
+        into: TypeId,
+    },
+}
 
-#[cfg(feature = "std")]
-impl TryFrom<Ipld> for () {
-    type Error = Error;
-
-    fn try_from(ipld: Ipld) -> Result<Self, Self::Error> {
-        match ipld {
-            Ipld::Null => Ok(()),
-            _ => Err(TypeError {
-                expected: TypeErrorType::Null,
-                found: ipld.into(),
+impl fmt::Display for ConversionError {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Self::WrongIpldKind { expected, found } => {
+                write!(
+                    formatter,
+                    "kind error: expected {:?} but found {:?}",
+                    expected, found
+                )
             }
-            .into()),
+            Self::FromIpld { from, into } => {
+                write!(
+                    formatter,
+                    "conversion error: cannot convert {:?} into {:?}",
+                    from, into
+                )
+            }
         }
     }
 }
 
-#[cfg(feature = "std")]
+impl TryFrom<Ipld> for () {
+    type Error = ConversionError;
+
+    fn try_from(ipld: Ipld) -> Result<Self, Self::Error> {
+        match ipld {
+            Ipld::Null => Ok(()),
+            _ => Err(ConversionError::WrongIpldKind {
+                expected: IpldKind::Null,
+                found: ipld.kind(),
+            }),
+        }
+    }
+}
+
 macro_rules! derive_try_from_ipld_option {
     ($enum:ident, $ty:ty) => {
         impl TryFrom<Ipld> for Option<$ty> {
-            type Error = Error;
+            type Error = ConversionError;
 
             fn try_from(ipld: Ipld) -> Result<Self, Self::Error> {
                 match ipld {
                     Ipld::Null => Ok(None),
-                    Ipld::$enum(value) => Ok(Some(value.try_into()?)),
-                    _ => Err(TypeError {
-                        expected: TypeErrorType::$enum,
-                        found: ipld.into(),
-                    }
-                    .into()),
+                    Ipld::$enum(value) => Ok(Some(value.try_into().map_err(|_| {
+                        ConversionError::FromIpld {
+                            from: IpldKind::$enum,
+                            into: TypeId::of::<$ty>(),
+                        }
+                    })?)),
+                    _ => Err(ConversionError::WrongIpldKind {
+                        expected: IpldKind::$enum,
+                        found: ipld.kind(),
+                    }),
                 }
             }
         }
     };
 }
 
-#[cfg(feature = "std")]
 macro_rules! derive_try_from_ipld {
     ($enum:ident, $ty:ty) => {
         impl TryFrom<Ipld> for $ty {
-            type Error = Error;
+            type Error = ConversionError;
 
             fn try_from(ipld: Ipld) -> Result<Self, Self::Error> {
                 match ipld {
-                    Ipld::$enum(value) => Ok(value.try_into()?),
-                    _ => Err(TypeError {
-                        expected: TypeErrorType::$enum,
-                        found: ipld.into(),
+                    Ipld::$enum(value) => {
+                        Ok(value.try_into().map_err(|_| ConversionError::FromIpld {
+                            from: IpldKind::$enum,
+                            into: TypeId::of::<$ty>(),
+                        })?)
                     }
-                    .into()),
+
+                    _ => Err(ConversionError::WrongIpldKind {
+                        expected: IpldKind::$enum,
+                        found: ipld.kind(),
+                    }),
                 }
             }
         }
@@ -113,91 +160,53 @@ derive_into_ipld!(Map, BTreeMap<String, Ipld>, to_owned);
 derive_into_ipld!(Link, Cid, clone);
 derive_into_ipld!(Link, &Cid, to_owned);
 
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Bool, bool);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, i8);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, i16);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, i32);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, i64);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, i128);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, isize);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, u8);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, u16);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, u32);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, u64);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, u128);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Integer, usize);
 
 //derive_from_ipld!(Float, f32); // User explicit conversion is prefered. Would implicitly lossily convert from f64.
 
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Float, f64);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(String, String);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Bytes, Vec<u8>);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(List, Vec<Ipld>);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Map, BTreeMap<String, Ipld>);
-#[cfg(feature = "std")]
 derive_try_from_ipld!(Link, Cid);
 
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Bool, bool);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, i8);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, i16);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, i32);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, i64);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, i128);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, isize);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, u8);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, u16);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, u32);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, u64);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, u128);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Integer, usize);
 
 //derive_from_ipld_option!(Float, f32); // User explicit conversion is prefered. Would implicitly lossily convert from f64.
 
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Float, f64);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(String, String);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Bytes, Vec<u8>);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(List, Vec<Ipld>);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Map, BTreeMap<String, Ipld>);
-#[cfg(feature = "std")]
 derive_try_from_ipld_option!(Link, Cid);
 
-#[cfg(all(test, feature = "std"))]
+#[cfg(test)]
 mod tests {
     use alloc::collections::BTreeMap;
 
