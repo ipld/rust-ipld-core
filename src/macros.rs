@@ -2,6 +2,7 @@
 /// Construct an `Ipld` from a literal.
 ///
 /// ```edition2018
+/// # extern crate alloc;
 /// # use ipld_core::ipld;
 /// #
 /// let value = ipld!({
@@ -24,6 +25,7 @@
 /// map with non-string keys, the `json!` macro will panic.
 ///
 /// ```edition2018
+/// # extern crate alloc;
 /// # use ipld_core::ipld;
 /// #
 /// let code = 200;
@@ -41,6 +43,7 @@
 /// Trailing commas are allowed inside both arrays and objects.
 ///
 /// ```edition2018
+/// # extern crate alloc;
 /// # use ipld_core::ipld;
 /// #
 /// let value = ipld!([
@@ -250,12 +253,12 @@ macro_rules! ipld_internal {
     };
 
     ({}) => {
-        $crate::ipld::Ipld::Map(std::collections::BTreeMap::new())
+        $crate::ipld::Ipld::Map(alloc::collections::BTreeMap::new())
     };
 
     ({ $($tt:tt)+ }) => {
         $crate::ipld::Ipld::Map({
-            let mut object = std::collections::BTreeMap::new();
+            let mut object = alloc::collections::BTreeMap::new();
             ipld_internal!(@object object () ($($tt)+) ($($tt)+));
             object
         })
@@ -277,7 +280,7 @@ macro_rules! ipld_internal {
 #[doc(hidden)]
 macro_rules! ipld_internal_vec {
     ($($content:tt)*) => {
-        vec![$($content)*]
+        alloc::vec![$($content)*]
     };
 }
 

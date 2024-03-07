@@ -54,6 +54,9 @@ impl fmt::Display for ConversionError {
     }
 }
 
+#[cfg(feature = "std")]
+impl std::error::Error for ConversionError {}
+
 impl TryFrom<Ipld> for () {
     type Error = ConversionError;
 
@@ -208,7 +211,7 @@ derive_try_from_ipld_option!(Link, Cid);
 
 #[cfg(test)]
 mod tests {
-    use alloc::collections::BTreeMap;
+    use alloc::{collections::BTreeMap, string::String, vec, vec::Vec};
 
     use cid::Cid;
 
