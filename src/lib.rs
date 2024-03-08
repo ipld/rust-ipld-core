@@ -9,6 +9,7 @@
 
 extern crate alloc;
 
+pub mod codec;
 pub mod convert;
 pub mod ipld;
 #[cfg(feature = "serde")]
