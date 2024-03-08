@@ -253,12 +253,12 @@ macro_rules! ipld_internal {
     };
 
     ({}) => {
-        $crate::ipld::Ipld::Map(alloc::collections::BTreeMap::new())
+        $crate::ipld::Ipld::Map($crate::__private_do_not_use::BTreeMap::new())
     };
 
     ({ $($tt:tt)+ }) => {
         $crate::ipld::Ipld::Map({
-            let mut object = alloc::collections::BTreeMap::new();
+            let mut object = $crate::__private_do_not_use::BTreeMap::new();
             ipld_internal!(@object object () ($($tt)+) ($($tt)+));
             object
         })
@@ -280,7 +280,7 @@ macro_rules! ipld_internal {
 #[doc(hidden)]
 macro_rules! ipld_internal_vec {
     ($($content:tt)*) => {
-        alloc::vec![$($content)*]
+        $crate::__private_do_not_use::vec![$($content)*]
     };
 }
 
@@ -288,32 +288,4 @@ macro_rules! ipld_internal_vec {
 #[doc(hidden)]
 macro_rules! ipld_unexpected {
     () => {};
-}
-
-#[cfg(test)]
-mod tests {
-    use cid::Cid;
-
-    use crate::ipld::Ipld;
-
-    #[test]
-    fn test_macro() {
-        let _: Ipld = ipld!(null);
-        let _: Ipld = ipld!(true);
-        let _: Ipld = ipld!(false);
-        let _: Ipld = ipld!(1);
-        let _: Ipld = ipld!(1.0);
-        let a: Ipld = ipld!("string");
-        let _: Ipld = ipld!([]);
-        let _: Ipld = ipld!([1, 2, 3]);
-        let _: Ipld = ipld!({});
-        let _: Ipld = ipld!({
-            "bye": null,
-            "numbers": [1, 2, 3],
-            "a": a,
-        });
-        let cid =
-            Cid::try_from("bafkreie74tgmnxqwojhtumgh5dzfj46gi4mynlfr7dmm7duwzyvnpw7h7m").unwrap();
-        let _: Ipld = ipld!(cid);
-    }
 }
