@@ -7,7 +7,7 @@ use cid::Cid;
 
 /// Each IPLD codec implementation should implement this Codec trait. This way codecs can be more
 /// easily exchanged or combined.
-pub trait Codec<T> {
+pub trait Codec<T>: Links {
     /// The multicodec code of the IPLD codec.
     const CODE: u64;
     /// The error that is returned if encoding or decoding fails.
@@ -22,8 +22,8 @@ pub trait Codec<T> {
 /// Trait for returning the links of a serialized IPLD data.
 pub trait Links {
     /// The error that is returned if the link extraction fails.
-    type Error;
+    type LinksError;
 
     /// Return all links (CIDs) that the given encoded data contains.
-    fn links(bytes: &[u8]) -> Result<Vec<Cid>, Self::Error>;
+    fn links(bytes: &[u8]) -> Result<Vec<Cid>, Self::LinksError>;
 }
