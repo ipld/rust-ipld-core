@@ -5,6 +5,8 @@
 
 use cid::Cid;
 
+use std::io::{BufRead, Write};
+
 /// Each IPLD codec implementation should implement this Codec trait. This way codecs can be more
 /// easily exchanged or combined.
 pub trait Codec<T>: Links {
@@ -13,10 +15,22 @@ pub trait Codec<T>: Links {
     /// The error that is returned if encoding or decoding fails.
     type Error;
 
+    /// Decode a reader into the desired type.
+    fn decode<R: BufRead>(reader: R) -> Result<T, Self::Error>;
+    /// Encode a type into a writer.
+    fn encode<W: Write>(writer: W, data: &T) -> Result<(), Self::Error>;
+
     /// Decode a slice into the desired type.
-    fn decode(bytes: &[u8]) -> Result<T, Self::Error>;
+    fn decode_from_slice(bytes: &[u8]) -> Result<T, Self::Error> {
+        Self::decode(bytes)
+    }
+
     /// Encode a type into bytes.
-    fn encode(obj: &T) -> Result<Vec<u8>, Self::Error>;
+    fn encode_to_vec(data: &T) -> Result<Vec<u8>, Self::Error> {
+        let mut output = Vec::new();
+        Self::encode(&mut output, data)?;
+        Ok(output)
+    }
 }
 
 /// Trait for returning the links of a serialized IPLD data.

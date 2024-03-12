@@ -12,7 +12,7 @@ categories = ["data-structures", "encoding"]
 
 [features]
 default = ["std"]
-# Makes the error implement `std::error::Error`.
+# Makes the error implement `std::error::Error` and the `Codec` trait available.
 std = ["cid/std", "serde?/std"]
 # Enables support for Serde serialization into/deserialization from the `Ipld` enum.
 serde = ["dep:serde", "cid/serde-codec"]

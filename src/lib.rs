@@ -9,6 +9,7 @@
 
 extern crate alloc;
 
+#[cfg(feature = "std")]
 pub mod codec;
 pub mod convert;
 pub mod ipld;
