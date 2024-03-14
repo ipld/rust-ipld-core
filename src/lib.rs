@@ -1,8 +1,4 @@
-//! IPLD core
-//!
-//! This crate provides core types for interoperating with [IPLD].
-//!
-//! [IPLD]: https://ipld.io/
+#![doc = include_str!("../README.md")]
 #![deny(missing_docs)]
 #![deny(warnings)]
 #![cfg_attr(not(feature = "std"), no_std)]

@@ -45,7 +45,7 @@ mod tests {
     use cid::serde::CID_SERDE_PRIVATE_IDENTIFIER;
     use cid::Cid;
     use serde::{de::DeserializeOwned, Serialize};
-    use serde_derive::{Deserialize, Serialize};
+    use serde_derive::Deserialize;
     use serde_test::{assert_tokens, Token};
 
     use crate::ipld::Ipld;
