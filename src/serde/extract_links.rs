@@ -1,3 +1,4 @@
+use alloc::{vec, vec::Vec};
 use core::fmt;
 
 use cid::CidGeneric;
