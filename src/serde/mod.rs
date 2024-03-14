@@ -3,12 +3,14 @@
 //! This implementation enables Serde to serialize to/deserialize from [`crate::ipld::Ipld`]
 //! values. The `Ipld` enum is similar to the `Value` enum in `serde_json` or `serde_cbor`.
 mod de;
+mod extract_links;
 mod ser;
 
 use alloc::string::{String, ToString};
 use core::fmt;
 
 pub use de::from_ipld;
+pub use extract_links::ExtractLinks;
 pub use ser::{to_ipld, Serializer};
 
 /// Error during Serde operations.
