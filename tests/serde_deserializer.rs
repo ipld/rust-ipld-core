@@ -7,7 +7,6 @@ use core::convert::TryFrom;
 
 use serde::Deserialize;
 use serde_bytes::ByteBuf;
-use serde_derive::Deserialize;
 use serde_json::json;
 
 use ipld_core::cid::Cid;
