@@ -31,3 +31,13 @@ serde_ipld_dagcbor = "0.5.0"
 serde_ipld_dagjson = "0.1.2"
 serde_json = "1.0.79"
 serde_test = "1.0.132"
+
+# This is a hack in order to make the rustdoc tests and releases happy.
+# We include README in the library docs, this way the are run as tests. Those examples create a
+# circular dependency on `ipld-core` (as `serde_ipld_dagcbor` and `serde_ipld_dagjson` depend on
+# `ipld-core`.
+# Also without this change `cargo release` would complain, as the `Cargo.lock` needs modifications
+# as the previously mentioned crates would need to depend on an already released and not the about
+# to be released version of `ipld-core`.
+[patch.crates-io]
+ipld-core = { path = "." }
