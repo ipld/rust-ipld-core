@@ -6,6 +6,7 @@ authors = [
 ]
 repository = "https://github.com/ipld/rust-ipld-core"
 edition = "2021"
+rust-version = "1.75.0"
 description = "IPLD core types"
 license = "MIT OR Apache-2.0"
 categories = ["data-structures", "encoding"]
