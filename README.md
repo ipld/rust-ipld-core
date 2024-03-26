@@ -85,7 +85,8 @@ fn main() {
 Feature flags
 -------------
 
- - `std`: Makes the error implement `std::error::Error` and the `Codec` trait available.
+ - `std` (enabled by default): Makes the error implement `std::error::Error` and the `Codec` trait available.
+ - `codec` (enabled by default): Provides the `Codec` trait, which enables encoding and decoding independent of the IPLD Codec. The minimum supported Rust version (MSRV) can significantly be reduced to 1.64 by disabling this feature.
  - `serde`: Enables support for Serde serialization into/deserialization from the `Ipld` enum.
  - `arb`: Enables support for property based testing.
 

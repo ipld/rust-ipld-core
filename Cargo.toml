@@ -11,13 +11,15 @@ license = "MIT OR Apache-2.0"
 categories = ["data-structures", "encoding"]
 
 [features]
-default = ["std"]
+default = ["codec", "std"]
 # Makes the error implement `std::error::Error` and the `Codec` trait available.
 std = ["cid/std", "serde?/std", "serde_bytes?/std"]
 # Enables support for Serde serialization into/deserialization from the `Ipld` enum.
 serde = ["dep:serde", "dep:serde_bytes", "cid/serde"]
 # Enables support for property based testing.
 arb = ["dep:quickcheck", "cid/arb"]
+# Enables support for the Codec trait, needs at least Rust 1.75
+codec = []
 
 [dependencies]
 cid = { version = "0.11.1", default-features = false, features = ["alloc"] }
