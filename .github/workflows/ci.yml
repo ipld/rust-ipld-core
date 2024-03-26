@@ -77,3 +77,16 @@ jobs:
       - name: Build
         # `thumbv6m-none-eabi` can't be used as Serde doesn't compile there.
         run: cargo build --no-default-features --features serde
+
+  check-lockfile:
+    name: Make sure the lockfile is up-to-date
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Sources
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Error if checked-in lockfile is not up-to-date
+        run: cargo build --locked
