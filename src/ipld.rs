@@ -34,7 +34,7 @@ impl fmt::Display for IndexError {
 impl std::error::Error for IndexError {}
 
 /// Ipld
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub enum Ipld {
     /// Represents the absence of a value or the value undefined.
     Null,
@@ -85,6 +85,31 @@ impl fmt::Debug for Ipld {
         }
     }
 }
+
+/// NaN floats are forbidden in the IPLD Data Model, but we do not enforce it. So in case such a
+/// value is introduced accidentally, make sure that it still compares as equal. This allows us
+/// to implement `Eq` for `Ipld`.
+impl PartialEq for Ipld {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Null, Self::Null) => true,
+            (Self::Bool(self_value), Self::Bool(other_value)) => self_value == other_value,
+            (Self::Integer(self_value), Self::Integer(other_value)) => self_value == other_value,
+            (Self::Float(self_value), Self::Float(other_value)) => {
+                // Treat two NaNs as being equal.
+                self_value == other_value || self_value.is_nan() && other_value.is_nan()
+            }
+            (Self::String(self_value), Self::String(other_value)) => self_value == other_value,
+            (Self::Bytes(self_value), Self::Bytes(other_value)) => self_value == other_value,
+            (Self::List(self_value), Self::List(other_value)) => self_value == other_value,
+            (Self::Map(self_value), Self::Map(other_value)) => self_value == other_value,
+            (Self::Link(self_value), Self::Link(other_value)) => self_value == other_value,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for Ipld {}
 
 /// IPLD Kind information without the actual value.
 ///
@@ -362,5 +387,13 @@ mod tests {
         map.insert("c".to_string(), Ipld::Integer(2));
         let ipld = Ipld::Map(map);
         assert_eq!(ipld.get("a").unwrap(), Some(&Ipld::Integer(0)));
+    }
+
+    // NaN floats are forbidden in the IPLD Data Model, but still make sure they are treated as
+    // equal in case they accidentally end up there.
+    #[test]
+    fn test_partial_eq_nan() {
+        let invalid_ipld = Ipld::Float(f64::NAN);
+        assert_eq!(invalid_ipld, invalid_ipld);
     }
 }
