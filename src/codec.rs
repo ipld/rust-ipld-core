@@ -10,10 +10,13 @@ use std::io::{BufRead, Write};
 /// Each IPLD codec implementation should implement this Codec trait. This way codecs can be more
 /// easily exchanged or combined.
 pub trait Codec<T>: Links {
-    /// The multicodec code of the IPLD codec.
-    const CODE: u64;
     /// The error that is returned if encoding or decoding fails.
     type Error;
+
+    /// The multicodec code of the IPLD codec.
+    fn to_code(&self) -> u64;
+    /// Attempt to convert from a `u64` code to this `Codec`.
+    fn try_from_code(code: u64) -> Option<Self> where Self: Sized;
 
     /// Decode a reader into the desired type.
     fn decode<R: BufRead>(reader: R) -> Result<T, Self::Error>;
