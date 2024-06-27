@@ -42,5 +42,5 @@ pub trait Links {
     type LinksError;
 
     /// Return all links (CIDs) that the given encoded data contains.
-    fn links(bytes: &[u8]) -> Result<impl Iterator<Item = Cid>, Self::LinksError>;
+    fn links(&self, bytes: &[u8]) -> Result<impl Iterator<Item = Cid>, Self::LinksError>;
 }
