@@ -24,14 +24,14 @@ pub trait Codec<T>: Links {
     fn encode<W: Write>(&self, writer: W, data: &T) -> Result<(), Self::Error>;
 
     /// Decode a slice into the desired type.
-    fn decode_from_slice(bytes: &[u8]) -> Result<T, Self::Error> {
-        Self::decode(bytes)
+    fn decode_from_slice(&self, bytes: &[u8]) -> Result<T, Self::Error> {
+        self.decode(bytes)
     }
 
     /// Encode a type into bytes.
-    fn encode_to_vec(data: &T) -> Result<Vec<u8>, Self::Error> {
+    fn encode_to_vec(&self, data: &T) -> Result<Vec<u8>, Self::Error> {
         let mut output = Vec::new();
-        Self::encode(&mut output, data)?;
+        self.encode(&mut output, data)?;
         Ok(output)
     }
 }
