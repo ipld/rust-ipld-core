@@ -19,9 +19,9 @@ pub trait Codec<T>: Links {
     fn try_from_code(code: u64) -> Option<Self> where Self: Sized;
 
     /// Decode a reader into the desired type.
-    fn decode<R: BufRead>(reader: R) -> Result<T, Self::Error>;
+    fn decode<R: BufRead>(&self, reader: R) -> Result<T, Self::Error>;
     /// Encode a type into a writer.
-    fn encode<W: Write>(writer: W, data: &T) -> Result<(), Self::Error>;
+    fn encode<W: Write>(&self, writer: W, data: &T) -> Result<(), Self::Error>;
 
     /// Decode a slice into the desired type.
     fn decode_from_slice(bytes: &[u8]) -> Result<T, Self::Error> {
