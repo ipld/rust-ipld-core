@@ -32,9 +32,7 @@ struct Tree {
     age: u8,
 }
 
-fn encode_generic<C, T>(codec: C, value: &T) -> Result<Vec<u8>, C::Error>
-where
-    C: Codec<T>,
+fn encode_generic<C: Codec<T>, T>(codec: C, value: &T) -> Result<Vec<u8>, C::Error>
 {
     codec.encode_to_vec(value)
 }
@@ -45,7 +43,7 @@ fn main() {
         age: 91,
     };
 
-    let cbor_encoded = encode_generic(DagCborCodec, &tree);
+    let cbor_encoded = encode_generic::<DagCborCodec, Tree>(DagCborCodec, &tree);
     #[allow(clippy::format_collect)]
     let cbor_hex = cbor_encoded
         .unwrap()
@@ -65,7 +63,7 @@ fn main() {
 If you are only interested in the links (CIDs) of an encoded IPLD object, then you can extract them them directly with [`Codec::links()`]:
 
 ```rust
-use ipld_core::{codec::{Codec, Links}, ipld, cid::Cid};
+use ipld_core::{codec::{Codec, Links}, ipld, ipld::Ipld, cid::Cid};
 use serde_ipld_dagjson::codec::DagJsonCodec;
 
 fn main() {

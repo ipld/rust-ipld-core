@@ -129,7 +129,7 @@ dependencies = [
 [[package]]
 name = "ipld-core"
 version = "0.4.1"
-source = "git+https://github.com/expede/rust-ipld-core?branch=compose-codecs#4ec9d497f4bc8ec408b6319d52d036fca7194ec0"
+source = "git+https://github.com/expede/rust-ipld-core?branch=compose-codecs#323e77903e1a3f33d5bb978e3ef2c902a30966c0"
 dependencies = [
  "cid",
  "serde",
@@ -334,7 +334,7 @@ dependencies = [
 [[package]]
 name = "serde_ipld_dagjson"
 version = "0.2.0"
-source = "git+https://github.com/expede/serde_ipld_dagjson?branch=update-codec#52b43c817d7bc1a673bcb1f12b2afc7c5cef9a81"
+source = "git+https://github.com/expede/serde_ipld_dagjson?branch=update-codec#021b0ef2321b1bedaef918d287758104e8477c8b"
 dependencies = [
  "ipld-core 0.4.1 (git+https://github.com/expede/rust-ipld-core?branch=compose-codecs)",
  "serde",
