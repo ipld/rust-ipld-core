@@ -33,28 +33,63 @@ impl fmt::Display for IndexError {
 #[cfg(feature = "std")]
 impl std::error::Error for IndexError {}
 
-/// Ipld
+/// Define the primitive types used for the internal IPLD Data Model representation within Rust.
+///
+/// `Null` is missing as this is always represented as a unit variant. The container types are
+/// derived from the primitives defined here.
+pub trait Primitives {
+    /// Type for a boolean.
+    type Bool;
+    /// Type for an integer.
+    type Integer;
+    /// Type for a float.
+    type Float;
+    /// Type for a String.
+    type String;
+    /// Type for bytes.
+    type Bytes;
+    /// Type for a link.
+    type Link;
+}
+
+/// The default values for the primitive types.
 #[derive(Clone)]
-pub enum Ipld {
+pub struct DefaultPrimitives;
+
+impl Primitives for DefaultPrimitives {
+    type Bool = bool;
+    type Integer = i128;
+    type Float = f64;
+    type String = String;
+    type Bytes = Vec<u8>;
+    type Link = Cid;
+}
+
+/// The generic version of the core IPLD type that allows using custom primitive types.
+#[derive(Clone)]
+pub enum IpldGeneric<P: Primitives = DefaultPrimitives> {
     /// Represents the absence of a value or the value undefined.
     Null,
     /// Represents a boolean value.
-    Bool(bool),
+    Bool(P::Bool),
     /// Represents an integer.
-    Integer(i128),
+    Integer(P::Integer),
     /// Represents a floating point value.
-    Float(f64),
+    Float(P::Float),
     /// Represents an UTF-8 string.
-    String(String),
+    String(P::String),
     /// Represents a sequence of bytes.
-    Bytes(Vec<u8>),
+    Bytes(P::Bytes),
     /// Represents a list.
-    List(Vec<Ipld>),
+    List(Vec<Self>),
     /// Represents a map of strings.
-    Map(BTreeMap<String, Ipld>),
-    /// Represents a map of integers.
-    Link(Cid),
+    Map(BTreeMap<P::String, Self>),
+    /// Represents a link, usually a CID.
+    Link(P::Link),
 }
+
+/// The core IPLD type.
+pub type Ipld = IpldGeneric<DefaultPrimitives>;
 
 impl fmt::Debug for Ipld {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
