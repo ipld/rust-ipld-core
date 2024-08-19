@@ -21,7 +21,7 @@ Here's a full example of a function that can encode data with both [serde_ipld_d
 ```rust
 use std::str;
 
-use ipld_core::codec::Codec;
+use ipld_core::codec::{Codec, Links};
 use serde::{Deserialize, Serialize};
 use serde_ipld_dagcbor::codec::DagCborCodec;
 use serde_ipld_dagjson::codec::DagJsonCodec;
@@ -32,11 +32,9 @@ struct Tree {
     age: u8,
 }
 
-fn encode_generic<C, T>(value: &T) -> Result<Vec<u8>, C::Error>
-where
-    C: Codec<T>,
+fn encode_generic<C: Codec<T>, T>(codec: C, value: &T) -> Result<Vec<u8>, C::Error>
 {
-    C::encode_to_vec(value)
+    codec.encode_to_vec(value)
 }
 
 fn main() {
@@ -45,7 +43,7 @@ fn main() {
         age: 91,
     };
 
-    let cbor_encoded = encode_generic::<DagCborCodec, _>(&tree);
+    let cbor_encoded = encode_generic::<DagCborCodec, Tree>(DagCborCodec, &tree);
     #[allow(clippy::format_collect)]
     let cbor_hex = cbor_encoded
         .unwrap()
@@ -54,7 +52,7 @@ fn main() {
         .collect::<String>();
     // CBOR encoded: https://cbor.nemo157.com/#value=a2666865696768740c63616765185b
     println!("CBOR encoded: https://cbor.nemo157.com/#value={}", cbor_hex);
-    let json_encoded = encode_generic::<DagJsonCodec, _>(&tree).unwrap();
+    let json_encoded = encode_generic(DagJsonCodec, &tree).unwrap();
     // JSON encoded: {"height":12,"age":91}
     println!("JSON encoded: {}", str::from_utf8(&json_encoded).unwrap());
 }
@@ -65,7 +63,7 @@ fn main() {
 If you are only interested in the links (CIDs) of an encoded IPLD object, then you can extract them them directly with [`Codec::links()`]:
 
 ```rust
-use ipld_core::{codec::{Codec, Links}, ipld, cid::Cid};
+use ipld_core::{codec::{Codec, Links}, ipld, ipld::Ipld, cid::Cid};
 use serde_ipld_dagjson::codec::DagJsonCodec;
 
 fn main() {
@@ -73,9 +71,9 @@ fn main() {
     let data = ipld!({"some": {"nested": cid}, "or": [cid, cid], "more": true});
 
     let mut encoded = Vec::new();
-    DagJsonCodec::encode(&mut encoded, &data).unwrap();
+    DagJsonCodec.encode(&mut encoded, &data).unwrap();
 
-    let links = DagJsonCodec::links(&encoded).unwrap().collect::<Vec<_>>();
+    let links = DagJsonCodec.links(&encoded).unwrap().collect::<Vec<_>>();
     // Extracted links: [Cid(bafkreibme22gw2h7y2h7tg2fhqotaqjucnbc24deqo72b6mkl2egezxhvy), Cid(bafkreibme22gw2h7y2h7tg2fhqotaqjucnbc24deqo72b6mkl2egezxhvy), Cid(bafkreibme22gw2h7y2h7tg2fhqotaqjucnbc24deqo72b6mkl2egezxhvy)]
     println!("Extracted links: {:?}", links);
 }
