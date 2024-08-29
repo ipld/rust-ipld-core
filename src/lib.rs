@@ -1,7 +1,7 @@
 #![allow(clippy::needless_doctest_main)]
 #![doc = include_str!("../README.md")]
-#![deny(missing_docs)]
-#![deny(warnings)]
+//#![deny(missing_docs)]
+//#![deny(warnings)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;

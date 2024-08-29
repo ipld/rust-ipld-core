@@ -39,21 +39,27 @@ impl std::error::Error for IndexError {}
 /// derived from the primitives defined here.
 pub trait Primitives {
     /// Type for a boolean.
-    type Bool;
+    type Bool: fmt::Debug + From<bool> + Into<bool>;
     /// Type for an integer.
-    type Integer;
+    type Integer: fmt::Debug + From<u64> + From<i64> + From<i128> + Into<i128>;
     /// Type for a float.
-    type Float;
+    type Float: fmt::Debug + From<f64> + Into<f64>;
     /// Type for a String.
-    type String;
+    #[cfg(not(feature = "serde"))]
+    type String: fmt::Debug + From<String> + Into<String> + Ord;
+    // TODO vmx 2024-08-14: Check if the `for <'de>` is the right thing to do here.
+    #[cfg(feature = "serde")]
+    type String: fmt::Debug + From<String> + Into<String> + Ord + for<'de> serde::Deserialize<'de>;
     /// Type for bytes.
-    type Bytes;
+    type Bytes: fmt::Debug + From<Vec<u8>> + Into<Vec<u8>>;
     /// Type for a link.
-    type Link;
+    // TODO vmx 2024-08-14: This should be `CidGeneric` and not just `Cid`.
+    type Link: fmt::Debug + fmt::Display + From<Cid> + Into<Cid>;
 }
 
 /// The default values for the primitive types.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
+//pub struct DefaultPrimitives<'de>(&'de PhantomData<_>);
 pub struct DefaultPrimitives;
 
 impl Primitives for DefaultPrimitives {
@@ -65,9 +71,30 @@ impl Primitives for DefaultPrimitives {
     type Link = Cid;
 }
 
+#[cfg(feature = "serde")]
+pub trait PrimitivesSerde<'de>: Primitives {
+    fn visit_integer<V: serde::de::Visitor<'de>, E: serde::de::Error>(
+        visitor: V,
+        value: <Self as Primitives>::Integer,
+    ) -> Result<V::Value, E>;
+}
+
+#[cfg(feature = "serde")]
+impl<'de> PrimitivesSerde<'de> for DefaultPrimitives {
+    //fn visit_integer<V>(visitor: V) -> Result<V::Value, Self::Error>
+    fn visit_integer<V, E>(visitor: V, value: Self::Integer) -> Result<V::Value, E>
+    where
+        V: serde::de::Visitor<'de>,
+        E: serde::de::Error,
+    {
+        visitor.visit_i128(value)
+        //println!("vmx: visit_integer")
+    }
+}
+
 /// The generic version of the core IPLD type that allows using custom primitive types.
 #[derive(Clone)]
-pub enum IpldGeneric<P: Primitives = DefaultPrimitives> {
+pub enum IpldGeneric<P: Primitives> {
     /// Represents the absence of a value or the value undefined.
     Null,
     /// Represents a boolean value.
@@ -89,9 +116,13 @@ pub enum IpldGeneric<P: Primitives = DefaultPrimitives> {
 }
 
 /// The core IPLD type.
+//pub type Ipld<'de> = IpldGeneric<DefaultPrimitives<'de>>;
 pub type Ipld = IpldGeneric<DefaultPrimitives>;
 
-impl fmt::Debug for Ipld {
+impl<P> fmt::Debug for IpldGeneric<P>
+where
+    P: Primitives,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if f.alternate() {
             match self {

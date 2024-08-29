@@ -7,13 +7,16 @@ use alloc::{
     string::{String, ToString},
     vec::Vec,
 };
-use core::convert::TryFrom;
+use core::{convert::TryFrom, fmt::Debug, marker::PhantomData};
 
 use cid::serde::CID_SERDE_PRIVATE_IDENTIFIER;
 use cid::Cid;
 use serde::ser;
 
-use crate::{ipld::Ipld, serde::SerdeError};
+use crate::{
+    ipld::{IpldGeneric, Primitives},
+    serde::SerdeError,
+};
 
 /// Serialize into instances of [`crate::ipld::Ipld`].
 ///
@@ -72,50 +75,58 @@ use crate::{ipld::Ipld, serde::SerdeError};
 /// let ipld = to_ipld(person);
 /// assert!(matches!(ipld, Ok(Ipld::Map(_))));
 /// ```
-pub fn to_ipld<T>(value: T) -> Result<Ipld, SerdeError>
+pub fn to_ipld<T, P>(value: T) -> Result<IpldGeneric<P>, SerdeError>
 where
     T: ser::Serialize,
+    P: Primitives,
 {
     value.serialize(Serializer)
 }
 
-impl ser::Serialize for Ipld {
+impl<P> ser::Serialize for IpldGeneric<P>
+where
+    P: Primitives,
+{
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: ser::Serializer,
     {
         match &self {
-            Self::Null => serializer.serialize_none(),
-            Self::Bool(value) => serializer.serialize_bool(*value),
-            Self::Integer(value) => serializer.serialize_i128(*value),
-            Self::Float(value) => serializer.serialize_f64(*value),
-            Self::String(value) => serializer.serialize_str(value),
-            Self::Bytes(value) => serializer.serialize_bytes(value),
-            Self::List(value) => serializer.collect_seq(value),
-            Self::Map(value) => serializer.collect_map(value),
-            Self::Link(value) => value.serialize(serializer),
+            //Self::Null => serializer.serialize_none(),
+            //Self::Bool(value) => serializer.serialize_bool((*value).into()),
+            //Self::Integer(value) => serializer.serialize_i128((*value).into()),
+            //Self::Float(value) => serializer.serialize_f64((*value).into()),
+            //Self::String(value) => serializer.serialize_str(&(*value).into()),
+            //Self::Bytes(value) => serializer.serialize_bytes(&(*value).into()),
+            //Self::List(value) => serializer.collect_seq(value),
+            //Self::Map(value) => serializer.collect_map(value.into()),
+            //Self::Link(value) => (*value).into().serialize(serializer),
+            _ => todo!(),
         }
     }
 }
 
 /// The IPLD serializer.
-pub struct Serializer;
+pub struct Serializer<P>(PhantomData<P>);
 
-impl serde::Serializer for Serializer {
-    type Ok = Ipld;
+impl<P> serde::Serializer for Serializer<P>
+where
+    P: Primitives + Debug,
+{
+    type Ok = IpldGeneric<P>;
     type Error = SerdeError;
 
-    type SerializeSeq = SerializeVec;
-    type SerializeTuple = SerializeVec;
-    type SerializeTupleStruct = SerializeVec;
-    type SerializeTupleVariant = SerializeTupleVariant;
-    type SerializeMap = SerializeMap;
-    type SerializeStruct = SerializeMap;
-    type SerializeStructVariant = SerializeStructVariant;
+    type SerializeSeq = SerializeVec<P>;
+    type SerializeTuple = SerializeVec<P>;
+    type SerializeTupleStruct = SerializeVec<P>;
+    type SerializeTupleVariant = SerializeTupleVariant<P>;
+    type SerializeMap = SerializeMap<P>;
+    type SerializeStruct = SerializeMap<P>;
+    type SerializeStructVariant = SerializeStructVariant<P>;
 
     #[inline]
     fn serialize_bool(self, value: bool) -> Result<Self::Ok, Self::Error> {
-        Ok(Self::Ok::Bool(value))
+        Ok(Self::Ok::Bool(value.into()))
     }
 
     #[inline]
@@ -139,7 +150,7 @@ impl serde::Serializer for Serializer {
     }
 
     fn serialize_i128(self, value: i128) -> Result<Self::Ok, Self::Error> {
-        Ok(Self::Ok::Integer(value))
+        Ok(Self::Ok::Integer(value.into()))
     }
 
     #[inline]
@@ -169,7 +180,7 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_f64(self, value: f64) -> Result<Self::Ok, Self::Error> {
-        Ok(Self::Ok::Float(value))
+        Ok(Self::Ok::Float(value.into()))
     }
 
     #[inline]
@@ -179,11 +190,11 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_str(self, value: &str) -> Result<Self::Ok, Self::Error> {
-        Ok(Self::Ok::String(value.to_owned()))
+        Ok(Self::Ok::String(value.to_owned().into()))
     }
 
     fn serialize_bytes(self, value: &[u8]) -> Result<Self::Ok, Self::Error> {
-        Ok(Self::Ok::Bytes(value.to_vec()))
+        Ok(Self::Ok::Bytes(value.to_vec().into()))
     }
 
     #[inline]
@@ -217,10 +228,10 @@ impl serde::Serializer for Serializer {
     {
         let ipld = value.serialize(self);
         if name == CID_SERDE_PRIVATE_IDENTIFIER {
-            if let Ok(Ipld::Bytes(bytes)) = ipld {
-                let cid = Cid::try_from(bytes)
+            if let Ok(IpldGeneric::Bytes(bytes)) = ipld {
+                let cid = Cid::try_from(bytes.into())
                     .map_err(|err| ser::Error::custom(format!("Invalid CID: {}", err)))?;
-                return Ok(Self::Ok::Link(cid));
+                return Ok(Self::Ok::Link(cid.into()));
             }
         }
         ipld
@@ -236,7 +247,7 @@ impl serde::Serializer for Serializer {
     where
         T: ser::Serialize + ?Sized,
     {
-        let values = BTreeMap::from([(variant.to_owned(), value.serialize(self)?)]);
+        let values = BTreeMap::from([(variant.to_owned().into(), value.serialize(self)?)]);
         Ok(Self::Ok::Map(values))
     }
 
@@ -307,7 +318,7 @@ impl serde::Serializer for Serializer {
         _len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
         Ok(SerializeStructVariant {
-            name: String::from(variant),
+            name: P::String::from(variant.into()),
             map: BTreeMap::new(),
         })
     }
@@ -318,27 +329,42 @@ impl serde::Serializer for Serializer {
     }
 }
 
-pub struct SerializeVec {
-    vec: Vec<Ipld>,
+pub struct SerializeVec<P>
+where
+    P: Primitives,
+{
+    vec: Vec<IpldGeneric<P>>,
 }
 
-pub struct SerializeTupleVariant {
+pub struct SerializeTupleVariant<P>
+where
+    P: Primitives,
+{
     name: String,
-    vec: Vec<Ipld>,
+    vec: Vec<IpldGeneric<P>>,
 }
 
-pub struct SerializeMap {
-    map: BTreeMap<String, Ipld>,
-    next_key: Option<String>,
+pub struct SerializeMap<P>
+where
+    P: Primitives,
+{
+    map: BTreeMap<P::String, IpldGeneric<P>>,
+    next_key: Option<P::String>,
 }
 
-pub struct SerializeStructVariant {
-    name: String,
-    map: BTreeMap<String, Ipld>,
+pub struct SerializeStructVariant<P>
+where
+    P: Primitives,
+{
+    name: P::String,
+    map: BTreeMap<P::String, IpldGeneric<P>>,
 }
 
-impl ser::SerializeSeq for SerializeVec {
-    type Ok = Ipld;
+impl<P> ser::SerializeSeq for SerializeVec<P>
+where
+    P: Primitives,
+{
+    type Ok = IpldGeneric<P>;
     type Error = SerdeError;
 
     fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
@@ -354,8 +380,11 @@ impl ser::SerializeSeq for SerializeVec {
     }
 }
 
-impl ser::SerializeTuple for SerializeVec {
-    type Ok = Ipld;
+impl<P> ser::SerializeTuple for SerializeVec<P>
+where
+    P: Primitives,
+{
+    type Ok = IpldGeneric<P>;
     type Error = SerdeError;
 
     fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
@@ -370,8 +399,11 @@ impl ser::SerializeTuple for SerializeVec {
     }
 }
 
-impl ser::SerializeTupleStruct for SerializeVec {
-    type Ok = Ipld;
+impl<P> ser::SerializeTupleStruct for SerializeVec<P>
+where
+    P: Primitives,
+{
+    type Ok = IpldGeneric<P>;
     type Error = SerdeError;
 
     fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
@@ -386,8 +418,11 @@ impl ser::SerializeTupleStruct for SerializeVec {
     }
 }
 
-impl ser::SerializeTupleVariant for SerializeTupleVariant {
-    type Ok = Ipld;
+impl<P> ser::SerializeTupleVariant for SerializeTupleVariant<P>
+where
+    P: Primitives,
+{
+    type Ok = IpldGeneric<P>;
     type Error = SerdeError;
 
     fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
@@ -399,13 +434,16 @@ impl ser::SerializeTupleVariant for SerializeTupleVariant {
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        let map = BTreeMap::from([(self.name, Self::Ok::List(self.vec))]);
+        let map = BTreeMap::from([(self.name.into(), Self::Ok::List(self.vec))]);
         Ok(Self::Ok::Map(map))
     }
 }
 
-impl ser::SerializeMap for SerializeMap {
-    type Ok = Ipld;
+impl<P> ser::SerializeMap for SerializeMap<P>
+where
+    P: Primitives,
+{
+    type Ok = IpldGeneric<P>;
     type Error = SerdeError;
 
     fn serialize_key<T>(&mut self, key: &T) -> Result<(), Self::Error>
@@ -413,7 +451,7 @@ impl ser::SerializeMap for SerializeMap {
         T: ser::Serialize + ?Sized,
     {
         match key.serialize(Serializer)? {
-            Ipld::String(string_key) => {
+            IpldGeneric::String(string_key) => {
                 self.next_key = Some(string_key);
                 Ok(())
             }
@@ -438,8 +476,11 @@ impl ser::SerializeMap for SerializeMap {
     }
 }
 
-impl ser::SerializeStruct for SerializeMap {
-    type Ok = Ipld;
+impl<P> ser::SerializeStruct for SerializeMap<P>
+where
+    P: Primitives,
+{
+    type Ok = IpldGeneric<P>;
     type Error = SerdeError;
 
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
@@ -455,8 +496,11 @@ impl ser::SerializeStruct for SerializeMap {
     }
 }
 
-impl ser::SerializeStructVariant for SerializeStructVariant {
-    type Ok = Ipld;
+impl<P> ser::SerializeStructVariant for SerializeStructVariant<P>
+where
+    P: Primitives,
+{
+    type Ok = IpldGeneric<P>;
     type Error = SerdeError;
 
     fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
@@ -464,7 +508,7 @@ impl ser::SerializeStructVariant for SerializeStructVariant {
         T: ser::Serialize + ?Sized,
     {
         self.map
-            .insert(key.to_string(), value.serialize(Serializer)?);
+            .insert(key.to_string().into(), value.serialize(Serializer)?);
         Ok(())
     }
 
