@@ -1,5 +1,5 @@
 use alloc::{borrow::ToOwned, collections::BTreeMap, format, string::String, vec::Vec};
-use core::{convert::TryFrom, fmt};
+use core::{convert::TryFrom, fmt, marker::PhantomData};
 
 use cid::serde::{BytesToCidVisitor, CID_SERDE_PRIVATE_IDENTIFIER};
 use cid::Cid;
@@ -8,9 +8,12 @@ use serde::{
     forward_to_deserialize_any, Deserialize,
 };
 
-use crate::{ipld::Ipld, serde::SerdeError};
+use crate::{
+    ipld::{IpldGeneric, Primitives, PrimitivesSerde},
+    serde::SerdeError,
+};
 
-/// Deserialize instances of [`crate::ipld::Ipld`].
+/// Deserialize instances of [`crate::ipld::IpldGeneric`].
 ///
 /// # Example
 ///
@@ -48,22 +51,35 @@ use crate::{ipld::Ipld, serde::SerdeError};
 /// assert!(matches!(person, Ok(Person { .. })));
 /// ```
 // NOTE vmx 2021-12-22: Taking by value is also what `serde_json` does.
-pub fn from_ipld<T>(value: Ipld) -> Result<T, SerdeError>
+pub fn from_ipld<P, T>(value: IpldGeneric<P>) -> Result<T, SerdeError>
 where
+    P: for<'de> PrimitivesSerde<'de>,
     T: serde::de::DeserializeOwned,
 {
     T::deserialize(value)
 }
 
-impl<'de> de::Deserialize<'de> for Ipld {
+//impl<'de, P> de::Deserializer<'de> for IpldGeneric<P> {
+//    where
+//        P: Primitives,
+//        P::Integer: SomeTrait<'de>,
+
+impl<'de, P> de::Deserialize<'de> for IpldGeneric<P>
+where
+    P: PrimitivesSerde<'de>,
+    //P::Integer: TraitWithDeLifetime<'de>,
+{
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: de::Deserializer<'de>,
     {
-        struct IpldVisitor;
+        struct IpldVisitor<PInner>(PhantomData<PInner>);
 
-        impl<'de> de::Visitor<'de> for IpldVisitor {
-            type Value = Ipld;
+        impl<'de, PInner> de::Visitor<'de> for IpldVisitor<PInner>
+        where
+            PInner: PrimitivesSerde<'de>,
+        {
+            type Value = IpldGeneric<PInner>;
 
             fn expecting(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
                 fmt.write_str("any valid IPLD kind")
@@ -74,7 +90,9 @@ impl<'de> de::Deserialize<'de> for Ipld {
             where
                 E: de::Error,
             {
-                Ok(Ipld::String(String::from(value)))
+                //Ok(IpldGeneric::String(PInner::String::from(value)))
+                //Ok(IpldGeneric::String(PInner::String::from(value.to_string())))
+                Ok(IpldGeneric::String(value.to_string().into()))
             }
 
             #[inline]
@@ -90,7 +108,8 @@ impl<'de> de::Deserialize<'de> for Ipld {
             where
                 E: de::Error,
             {
-                Ok(Ipld::Bytes(v))
+                //Ok(IpldGeneric::Bytes(PInner::Bytes ::from(v)))
+                Ok(IpldGeneric::Bytes(v.into()))
             }
 
             #[inline]
@@ -98,7 +117,7 @@ impl<'de> de::Deserialize<'de> for Ipld {
             where
                 E: de::Error,
             {
-                Ok(Ipld::Integer(v.into()))
+                Ok(IpldGeneric::Integer(v.into()))
             }
 
             #[inline]
@@ -106,7 +125,7 @@ impl<'de> de::Deserialize<'de> for Ipld {
             where
                 E: de::Error,
             {
-                Ok(Ipld::Integer(v.into()))
+                Ok(IpldGeneric::Integer(v.into()))
             }
 
             #[inline]
@@ -114,7 +133,7 @@ impl<'de> de::Deserialize<'de> for Ipld {
             where
                 E: de::Error,
             {
-                Ok(Ipld::Integer(v))
+                Ok(IpldGeneric::Integer(v.into()))
             }
 
             #[inline]
@@ -122,7 +141,7 @@ impl<'de> de::Deserialize<'de> for Ipld {
             where
                 E: de::Error,
             {
-                Ok(Ipld::Float(v))
+                Ok(IpldGeneric::Float(v.into()))
             }
 
             #[inline]
@@ -130,7 +149,7 @@ impl<'de> de::Deserialize<'de> for Ipld {
             where
                 E: de::Error,
             {
-                Ok(Ipld::Bool(v))
+                Ok(IpldGeneric::Bool(v.into()))
             }
 
             #[inline]
@@ -138,7 +157,7 @@ impl<'de> de::Deserialize<'de> for Ipld {
             where
                 E: de::Error,
             {
-                Ok(Ipld::Null)
+                Ok(IpldGeneric::Null)
             }
 
             #[inline]
@@ -154,7 +173,7 @@ impl<'de> de::Deserialize<'de> for Ipld {
             where
                 E: de::Error,
             {
-                Ok(Ipld::Null)
+                Ok(IpldGeneric::Null)
             }
 
             #[inline]
@@ -168,7 +187,7 @@ impl<'de> de::Deserialize<'de> for Ipld {
                     vec.push(elem);
                 }
 
-                Ok(Ipld::List(vec))
+                Ok(IpldGeneric::List(vec))
             }
 
             #[inline]
@@ -185,7 +204,7 @@ impl<'de> de::Deserialize<'de> for Ipld {
                     }
                 }
 
-                Ok(Ipld::Map(values))
+                Ok(IpldGeneric::Map(values))
             }
 
             /// Newtype structs are only used to deserialize CIDs.
@@ -196,11 +215,11 @@ impl<'de> de::Deserialize<'de> for Ipld {
             {
                 deserializer
                     .deserialize_bytes(BytesToCidVisitor)
-                    .map(Ipld::Link)
+                    .map(|link| IpldGeneric::Link(link.into()))
             }
         }
 
-        deserializer.deserialize_any(IpldVisitor)
+        deserializer.deserialize_any(IpldVisitor(PhantomData))
     }
 }
 
@@ -208,15 +227,15 @@ macro_rules! impl_deserialize_integer {
     ($ty:ident, $deserialize:ident, $visit:ident) => {
         fn $deserialize<V: de::Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
             match self {
-                Self::Integer(integer) => match $ty::try_from(integer) {
+                Self::Integer(integer) => match $ty::try_from(integer.into()) {
                     Ok(int) => visitor.$visit(int),
                     Err(_) => error(format!(
-                        "`Ipld::Integer` value was bigger than `{}`",
+                        "`IpldGeneric::Integer` value was bigger than `{}`",
                         stringify!($ty)
                     )),
                 },
                 _ => error(format!(
-                    "Only `Ipld::Integer` can be deserialized to `{}`, input was `{:#?}`",
+                    "Only `IpldGeneric::Integer` can be deserialized to `{}`, input was `{:#?}`",
                     stringify!($ty),
                     self
                 )),
@@ -227,8 +246,8 @@ macro_rules! impl_deserialize_integer {
 
 /// A Deserializer for CIDs.
 ///
-/// A separate deserializer is needed to make sure we always deserialize only CIDs as `Ipld::Link`
-/// and don't deserialize arbitrary bytes.
+/// A separate deserializer is needed to make sure we always deserialize only CIDs as
+/// `IpldGeneric::Link` and don't deserialize arbitrary bytes.
 struct CidDeserializer(Cid);
 
 impl<'de> de::Deserializer<'de> for CidDeserializer {
@@ -249,13 +268,16 @@ impl<'de> de::Deserializer<'de> for CidDeserializer {
     }
 }
 
-/// Deserialize from an [`Ipld`] enum into a Rust type.
+/// Deserialize from an [`IpldGeneric`] enum into a Rust type.
 ///
 /// The deserialization will return an error if you try to deserialize into an integer type that
-/// would be too small to hold the value stored in [`Ipld::Integer`].
+/// would be too small to hold the value stored in [`IpldGeneric::Integer`].
 ///
-/// [`Ipld::Floats`] can be converted to `f32` if there is no of precision, else it will error.
-impl<'de> de::Deserializer<'de> for Ipld {
+/// [`IpldGeneric::Floats`] can be converted to `f32` if there is no of precision, else it will error.
+impl<'de, P> de::Deserializer<'de> for IpldGeneric<P>
+where
+    P: PrimitivesSerde<'de>,
+{
     type Error = SerdeError;
 
     #[inline]
@@ -265,14 +287,16 @@ impl<'de> de::Deserializer<'de> for Ipld {
     {
         match self {
             Self::Null => visitor.visit_none(),
-            Self::Bool(bool) => visitor.visit_bool(bool),
-            Self::Integer(i128) => visitor.visit_i128(i128),
-            Self::Float(f64) => visitor.visit_f64(f64),
-            Self::String(string) => visitor.visit_str(&string),
-            Self::Bytes(bytes) => visitor.visit_bytes(&bytes),
+            Self::Bool(bool) => visitor.visit_bool(bool.into()),
+            //GO ON HERE and think about what to visit here
+            //Self::Integer(i128) => visitor.visit_i128(i128),
+            Self::Integer(i128) => P::visit_integer(visitor, i128),
+            Self::Float(f64) => visitor.visit_f64(f64.into()),
+            Self::String(string) => visitor.visit_str(&string.into()),
+            Self::Bytes(bytes) => visitor.visit_bytes(&bytes.into()),
             Self::List(list) => visit_seq(list, visitor),
             Self::Map(map) => visit_map(map, visitor),
-            Self::Link(cid) => visitor.visit_newtype_struct(CidDeserializer(cid)),
+            Self::Link(cid) => visitor.visit_newtype_struct(CidDeserializer(cid.into())),
         }
     }
 
@@ -288,7 +312,7 @@ impl<'de> de::Deserializer<'de> for Ipld {
 
     fn deserialize_bool<V: de::Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self {
-            Self::Bool(bool) => visitor.visit_bool(bool),
+            Self::Bool(bool) => visitor.visit_bool(bool.into()),
             _ => error(format!(
                 "Only `Ipld::Bool` can be deserialized to bool, input was `{:#?}`",
                 self
@@ -308,7 +332,8 @@ impl<'de> de::Deserializer<'de> for Ipld {
 
     fn deserialize_f32<V: de::Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self {
-            Self::Float(float) => {
+            Self::Float(associate_float) => {
+                let float = associate_float.into();
                 if !float.is_finite() {
                     error(format!("`Ipld::Float` must be a finite number, not infinity or NaN, input was `{}`", float))
                 } else if (float as f32) as f64 != float {
@@ -328,7 +353,8 @@ impl<'de> de::Deserializer<'de> for Ipld {
 
     fn deserialize_f64<V: de::Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self {
-            Self::Float(float) => {
+            Self::Float(associate_float) => {
+                let float = associate_float.into();
                 if float.is_finite() {
                     visitor.visit_f64(float)
                 } else {
@@ -344,7 +370,8 @@ impl<'de> de::Deserializer<'de> for Ipld {
 
     fn deserialize_char<V: de::Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self {
-            Self::String(string) => {
+            Self::String(associate_string) => {
+                let string: String = associate_string.into();
                 if string.chars().count() == 1 {
                     visitor.visit_char(string.chars().next().unwrap())
                 } else {
@@ -360,7 +387,7 @@ impl<'de> de::Deserializer<'de> for Ipld {
 
     fn deserialize_str<V: de::Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self {
-            Self::String(string) => visitor.visit_str(&string),
+            Self::String(string) => visitor.visit_str(&string.into()),
             _ => error(format!(
                 "Only `Ipld::String` can be deserialized to string, input was `{:#?}`",
                 self
@@ -370,7 +397,7 @@ impl<'de> de::Deserializer<'de> for Ipld {
 
     fn deserialize_string<V: de::Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self {
-            Self::String(string) => visitor.visit_string(string),
+            Self::String(string) => visitor.visit_string(string.into()),
             _ => error(format!(
                 "Only `Ipld::String` can be deserialized to string, input was `{:#?}`",
                 self
@@ -380,7 +407,7 @@ impl<'de> de::Deserializer<'de> for Ipld {
 
     fn deserialize_bytes<V: de::Visitor<'de>>(self, visitor: V) -> Result<V::Value, Self::Error> {
         match self {
-            Self::Bytes(bytes) => visitor.visit_bytes(&bytes),
+            Self::Bytes(bytes) => visitor.visit_bytes(&bytes.into()),
             _ => error(format!(
                 "Only `Ipld::Bytes` can be deserialized to bytes, input was `{:#?}`",
                 self
@@ -393,7 +420,7 @@ impl<'de> de::Deserializer<'de> for Ipld {
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
         match self {
-            Self::Bytes(bytes) => visitor.visit_byte_buf(bytes),
+            Self::Bytes(bytes) => visitor.visit_byte_buf(bytes.into()),
             _ => error(format!(
                 "Only `Ipld::Bytes` can be deserialized to bytes, input was `{:#?}`",
                 self
@@ -455,7 +482,7 @@ impl<'de> de::Deserializer<'de> for Ipld {
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
         match self {
-            Self::String(string) => visitor.visit_str(&string),
+            Self::String(string) => visitor.visit_str(&string.into()),
             _ => error(format!(
                 "Only `Ipld::String` can be deserialized to identifier, input was `{:#?}`",
                 self
@@ -493,7 +520,7 @@ impl<'de> de::Deserializer<'de> for Ipld {
     ) -> Result<V::Value, Self::Error> {
         if name == CID_SERDE_PRIVATE_IDENTIFIER {
             match self {
-                Ipld::Link(cid) => visitor.visit_newtype_struct(CidDeserializer(cid)),
+                IpldGeneric::Link(cid) => visitor.visit_newtype_struct(CidDeserializer(cid.into())),
                 _ => error(format!(
                     "Only `Ipld::Link`s can be deserialized to CIDs, input was `{:#?}`",
                     self
@@ -513,7 +540,7 @@ impl<'de> de::Deserializer<'de> for Ipld {
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
         let (variant, value) = match self {
-            Ipld::Map(map) => {
+            IpldGeneric::Map(map) => {
                 let mut iter = map.into_iter();
                 let (variant, value) = match iter.next() {
                     Some(v) => v,
@@ -529,9 +556,9 @@ impl<'de> de::Deserializer<'de> for Ipld {
                         "Only `Ipld::Map`s with a single key can be deserialized to `enum`, input had more keys"
                     );
                 }
-                (variant, Some(value))
+                (variant.into(), Some(value))
             }
-            Ipld::String(variant) => (variant, None),
+            IpldGeneric::String(variant) => (variant.into(), None),
             _ => return error(format!(
                     "Only `Ipld::Map` and `Ipld::String` can be deserialized to `enum`, input was `{:#?}`",
                     self
@@ -563,16 +590,21 @@ impl<'de> de::Deserializer<'de> for Ipld {
     }
 }
 
-fn visit_map<'de, V>(map: BTreeMap<String, Ipld>, visitor: V) -> Result<V::Value, SerdeError>
+fn visit_map<'de, P, V>(
+    map: BTreeMap<P::String, IpldGeneric<P>>,
+    visitor: V,
+) -> Result<V::Value, SerdeError>
 where
+    P: PrimitivesSerde<'de>,
     V: de::Visitor<'de>,
 {
     let mut deserializer = MapDeserializer::new(map);
     visitor.visit_map(&mut deserializer)
 }
 
-fn visit_seq<'de, V>(list: Vec<Ipld>, visitor: V) -> Result<V::Value, SerdeError>
+fn visit_seq<'de, P, V>(list: Vec<IpldGeneric<P>>, visitor: V) -> Result<V::Value, SerdeError>
 where
+    P: PrimitivesSerde<'de>,
     V: de::Visitor<'de>,
 {
     let mut deserializer = SeqDeserializer::new(list);
@@ -581,13 +613,19 @@ where
 
 // Heavily based on
 // https://github.com/serde-rs/json/blob/95f67a09399d546d9ecadeb747a845a77ff309b2/src/value/de.rs#L601
-struct MapDeserializer {
-    iter: <BTreeMap<String, Ipld> as IntoIterator>::IntoIter,
-    value: Option<Ipld>,
+struct MapDeserializer<P>
+where
+    P: Primitives,
+{
+    iter: <BTreeMap<P::String, IpldGeneric<P>> as IntoIterator>::IntoIter,
+    value: Option<IpldGeneric<P>>,
 }
 
-impl MapDeserializer {
-    fn new(map: BTreeMap<String, Ipld>) -> Self {
+impl<P> MapDeserializer<P>
+where
+    P: Primitives,
+{
+    fn new(map: BTreeMap<P::String, IpldGeneric<P>>) -> Self {
         Self {
             iter: map.into_iter(),
             value: None,
@@ -595,7 +633,10 @@ impl MapDeserializer {
     }
 }
 
-impl<'de> de::MapAccess<'de> for MapDeserializer {
+impl<'de, P> de::MapAccess<'de> for MapDeserializer<P>
+where
+    P: PrimitivesSerde<'de>,
+{
     type Error = SerdeError;
 
     fn next_key_seed<K>(&mut self, seed: K) -> Result<Option<K::Value>, Self::Error>
@@ -605,7 +646,7 @@ impl<'de> de::MapAccess<'de> for MapDeserializer {
         match self.iter.next() {
             Some((key, value)) => {
                 self.value = Some(value);
-                seed.deserialize(Ipld::String(key)).map(Some)
+                seed.deserialize(IpldGeneric::<P>::String(key)).map(Some)
             }
             None => Ok(None),
         }
@@ -631,19 +672,28 @@ impl<'de> de::MapAccess<'de> for MapDeserializer {
 
 // Heavily based on
 // https://github.com/serde-rs/json/blob/95f67a09399d546d9ecadeb747a845a77ff309b2/src/value/de.rs#L554
-struct SeqDeserializer {
-    iter: <Vec<Ipld> as IntoIterator>::IntoIter,
+struct SeqDeserializer<P>
+where
+    P: Primitives,
+{
+    iter: <Vec<IpldGeneric<P>> as IntoIterator>::IntoIter,
 }
 
-impl SeqDeserializer {
-    fn new(vec: Vec<Ipld>) -> Self {
+impl<P> SeqDeserializer<P>
+where
+    P: Primitives,
+{
+    fn new(vec: Vec<IpldGeneric<P>>) -> Self {
         Self {
             iter: vec.into_iter(),
         }
     }
 }
 
-impl<'de> de::SeqAccess<'de> for SeqDeserializer {
+impl<'de, P> de::SeqAccess<'de> for SeqDeserializer<P>
+where
+    P: PrimitivesSerde<'de>,
+{
     type Error = SerdeError;
 
     fn next_element_seed<T>(&mut self, seed: T) -> Result<Option<T::Value>, Self::Error>
@@ -666,14 +716,20 @@ impl<'de> de::SeqAccess<'de> for SeqDeserializer {
 
 // Heavily based on
 // https://github.com/serde-rs/json/blob/95f67a09399d546d9ecadeb747a845a77ff309b2/src/value/de.rs#L455
-struct EnumDeserializer {
+struct EnumDeserializer<P>
+where
+    P: Primitives,
+{
     variant: String,
-    value: Option<Ipld>,
+    value: Option<IpldGeneric<P>>,
 }
 
-impl<'de> de::EnumAccess<'de> for EnumDeserializer {
+impl<'de, P> de::EnumAccess<'de> for EnumDeserializer<P>
+where
+    P: PrimitivesSerde<'de>,
+{
     type Error = SerdeError;
-    type Variant = VariantDeserializer;
+    type Variant = VariantDeserializer<P>;
 
     fn variant_seed<V>(self, seed: V) -> Result<(V::Value, Self::Variant), Self::Error>
     where
@@ -687,9 +743,12 @@ impl<'de> de::EnumAccess<'de> for EnumDeserializer {
 
 // Heavily based on
 // https://github.com/serde-rs/json/blob/95f67a09399d546d9ecadeb747a845a77ff309b2/src/value/de.rs#L482
-struct VariantDeserializer(Option<Ipld>);
+struct VariantDeserializer<P: Primitives>(Option<IpldGeneric<P>>);
 
-impl<'de> de::VariantAccess<'de> for VariantDeserializer {
+impl<'de, P> de::VariantAccess<'de> for VariantDeserializer<P>
+where
+    P: PrimitivesSerde<'de>,
+{
     type Error = SerdeError;
 
     fn unit_variant(self) -> Result<(), Self::Error> {
@@ -717,7 +776,7 @@ impl<'de> de::VariantAccess<'de> for VariantDeserializer {
         V: de::Visitor<'de>,
     {
         match self.0 {
-            Some(Ipld::List(list)) => {
+            Some(IpldGeneric::List(list)) => {
                 if len == list.len() {
                     visit_seq(list, visitor)
                 } else {
@@ -744,7 +803,7 @@ impl<'de> de::VariantAccess<'de> for VariantDeserializer {
         V: de::Visitor<'de>,
     {
         match self.0 {
-            Some(Ipld::Map(v)) => visit_map(v, visitor),
+            Some(IpldGeneric::Map(v)) => visit_map(v, visitor),
             Some(_) => error(format!(
                 "Only `Ipld::Map` can be deserialized to struct variant, input was `{:#?}`",
                 self.0

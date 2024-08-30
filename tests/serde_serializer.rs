@@ -25,7 +25,7 @@ where
 #[allow(clippy::let_unit_value)]
 fn ipld_serializer_unit() {
     let unit = ();
-    let serialized = to_ipld(unit);
+    let serialized: Result<Ipld, _> = to_ipld(unit);
     assert!(serialized.is_err());
 }
 
@@ -35,7 +35,7 @@ fn ipld_serializer_unit_struct() {
     struct UnitStruct;
 
     let unit_struct = UnitStruct;
-    let serialized = to_ipld(unit_struct);
+    let serialized: Result<Ipld, _> = to_ipld(unit_struct);
     assert!(serialized.is_err());
 }
 

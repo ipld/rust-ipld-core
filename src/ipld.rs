@@ -33,30 +33,103 @@ impl fmt::Display for IndexError {
 #[cfg(feature = "std")]
 impl std::error::Error for IndexError {}
 
-/// Ipld
+/// Define the primitive types used for the internal IPLD Data Model representation within Rust.
+///
+/// `Null` is missing as this is always represented as a unit variant. The container types are
+/// derived from the primitives defined here.
+pub trait Primitives: fmt::Debug {
+    /// Type for a boolean.
+    type Bool: fmt::Debug + From<bool> + Into<bool> + Copy;
+    /// Type for an integer.
+    type Integer: fmt::Debug + From<u64> + From<i64> + From<i128> + Into<i128> + Copy;
+    /// Type for a float.
+    type Float: fmt::Debug + From<f64> + Into<f64> + Copy;
+    /// Type for a String.
+    #[cfg(not(feature = "serde"))]
+    type String: fmt::Debug + From<String> + Into<String> + Ord;
+    // TODO vmx 2024-08-14: Check if the `for <'de>` is the right thing to do here.
+    #[cfg(feature = "serde")]
+    type String: fmt::Debug
+        + From<String>
+        + Into<String>
+        + Ord
+        + for<'de> serde::Deserialize<'de>
+        + serde::Serialize;
+    /// Type for bytes.
+    type Bytes: fmt::Debug + From<Vec<u8>> + Into<Vec<u8>>;
+    /// Type for a link.
+    // TODO vmx 2024-08-14: This should be `CidGeneric` and not just `Cid`.
+    #[cfg(not(feature = "serde"))]
+    type Link: fmt::Debug + fmt::Display + From<Cid> + Into<Cid>;
+    #[cfg(feature = "serde")]
+    type Link: fmt::Debug + fmt::Display + From<Cid> + Into<Cid> + serde::Serialize;
+}
+
+/// The default values for the primitive types.
+#[derive(Clone, Debug)]
+//pub struct DefaultPrimitives<'de>(&'de PhantomData<_>);
+pub struct DefaultPrimitives;
+
+impl Primitives for DefaultPrimitives {
+    type Bool = bool;
+    type Integer = i128;
+    type Float = f64;
+    type String = String;
+    type Bytes = Vec<u8>;
+    type Link = Cid;
+}
+
+#[cfg(feature = "serde")]
+pub trait PrimitivesSerde<'de>: Primitives {
+    fn visit_integer<V: serde::de::Visitor<'de>, E: serde::de::Error>(
+        visitor: V,
+        value: <Self as Primitives>::Integer,
+    ) -> Result<V::Value, E>;
+}
+
+#[cfg(feature = "serde")]
+impl<'de> PrimitivesSerde<'de> for DefaultPrimitives {
+    //fn visit_integer<V>(visitor: V) -> Result<V::Value, Self::Error>
+    fn visit_integer<V, E>(visitor: V, value: Self::Integer) -> Result<V::Value, E>
+    where
+        V: serde::de::Visitor<'de>,
+        E: serde::de::Error,
+    {
+        visitor.visit_i128(value)
+        //println!("vmx: visit_integer")
+    }
+}
+
+/// The generic version of the core IPLD type that allows using custom primitive types.
 #[derive(Clone)]
-pub enum Ipld {
+pub enum IpldGeneric<P: Primitives> {
     /// Represents the absence of a value or the value undefined.
     Null,
     /// Represents a boolean value.
-    Bool(bool),
+    Bool(P::Bool),
     /// Represents an integer.
-    Integer(i128),
+    Integer(P::Integer),
     /// Represents a floating point value.
-    Float(f64),
+    Float(P::Float),
     /// Represents an UTF-8 string.
-    String(String),
+    String(P::String),
     /// Represents a sequence of bytes.
-    Bytes(Vec<u8>),
+    Bytes(P::Bytes),
     /// Represents a list.
-    List(Vec<Ipld>),
+    List(Vec<Self>),
     /// Represents a map of strings.
-    Map(BTreeMap<String, Ipld>),
-    /// Represents a map of integers.
-    Link(Cid),
+    Map(BTreeMap<P::String, Self>),
+    /// Represents a link, usually a CID.
+    Link(P::Link),
 }
 
-impl fmt::Debug for Ipld {
+/// The core IPLD type.
+pub type Ipld = IpldGeneric<DefaultPrimitives>;
+
+impl<P> fmt::Debug for IpldGeneric<P>
+where
+    P: Primitives,
+{
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         if f.alternate() {
             match self {
