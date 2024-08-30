@@ -37,24 +37,32 @@ impl std::error::Error for IndexError {}
 ///
 /// `Null` is missing as this is always represented as a unit variant. The container types are
 /// derived from the primitives defined here.
-pub trait Primitives {
+pub trait Primitives: fmt::Debug {
     /// Type for a boolean.
-    type Bool: fmt::Debug + From<bool> + Into<bool>;
+    type Bool: fmt::Debug + From<bool> + Into<bool> + Copy;
     /// Type for an integer.
-    type Integer: fmt::Debug + From<u64> + From<i64> + From<i128> + Into<i128>;
+    type Integer: fmt::Debug + From<u64> + From<i64> + From<i128> + Into<i128> + Copy;
     /// Type for a float.
-    type Float: fmt::Debug + From<f64> + Into<f64>;
+    type Float: fmt::Debug + From<f64> + Into<f64> + Copy;
     /// Type for a String.
     #[cfg(not(feature = "serde"))]
     type String: fmt::Debug + From<String> + Into<String> + Ord;
     // TODO vmx 2024-08-14: Check if the `for <'de>` is the right thing to do here.
     #[cfg(feature = "serde")]
-    type String: fmt::Debug + From<String> + Into<String> + Ord + for<'de> serde::Deserialize<'de>;
+    type String: fmt::Debug
+        + From<String>
+        + Into<String>
+        + Ord
+        + for<'de> serde::Deserialize<'de>
+        + serde::Serialize;
     /// Type for bytes.
     type Bytes: fmt::Debug + From<Vec<u8>> + Into<Vec<u8>>;
     /// Type for a link.
     // TODO vmx 2024-08-14: This should be `CidGeneric` and not just `Cid`.
+    #[cfg(not(feature = "serde"))]
     type Link: fmt::Debug + fmt::Display + From<Cid> + Into<Cid>;
+    #[cfg(feature = "serde")]
+    type Link: fmt::Debug + fmt::Display + From<Cid> + Into<Cid> + serde::Serialize;
 }
 
 /// The default values for the primitive types.
@@ -116,7 +124,6 @@ pub enum IpldGeneric<P: Primitives> {
 }
 
 /// The core IPLD type.
-//pub type Ipld<'de> = IpldGeneric<DefaultPrimitives<'de>>;
 pub type Ipld = IpldGeneric<DefaultPrimitives>;
 
 impl<P> fmt::Debug for IpldGeneric<P>

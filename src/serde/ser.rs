@@ -80,34 +80,44 @@ where
     T: ser::Serialize,
     P: Primitives,
 {
-    value.serialize(Serializer)
+    value.serialize(Serializer::new())
 }
 
 impl<P> ser::Serialize for IpldGeneric<P>
 where
     P: Primitives,
+    //for<'a> &'a [u8]: From<&'a P::Bytes>,
+    //for<'a> &'a str: From<&'a P::String>,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: ser::Serializer,
     {
         match &self {
-            //Self::Null => serializer.serialize_none(),
-            //Self::Bool(value) => serializer.serialize_bool((*value).into()),
-            //Self::Integer(value) => serializer.serialize_i128((*value).into()),
-            //Self::Float(value) => serializer.serialize_f64((*value).into()),
-            //Self::String(value) => serializer.serialize_str(&(*value).into()),
-            //Self::Bytes(value) => serializer.serialize_bytes(&(*value).into()),
-            //Self::List(value) => serializer.collect_seq(value),
-            //Self::Map(value) => serializer.collect_map(value.into()),
-            //Self::Link(value) => (*value).into().serialize(serializer),
-            _ => todo!(),
+            Self::Null => serializer.serialize_none(),
+            Self::Bool(value) => serializer.serialize_bool((*value).into()),
+            Self::Integer(value) => serializer.serialize_i128((*value).into()),
+            Self::Float(value) => serializer.serialize_f64((*value).into()),
+            Self::String(value) => serializer.serialize_str(value.into()),
+            Self::Bytes(value) => serializer.serialize_bytes(value.into()),
+            Self::List(value) => serializer.collect_seq(value),
+            Self::Map(value) => {
+                serializer.collect_map::<_, _, &BTreeMap<P::String, IpldGeneric<P>>>(value)
+            }
+            Self::Link(value) => value.serialize(serializer),
+            //_ => todo!(),
         }
     }
 }
 
 /// The IPLD serializer.
 pub struct Serializer<P>(PhantomData<P>);
+
+impl<P> Serializer<P> {
+    pub fn new() -> Self {
+        Self(PhantomData)
+    }
+}
 
 impl<P> serde::Serializer for Serializer<P>
 where
@@ -371,7 +381,7 @@ where
     where
         T: ser::Serialize + ?Sized,
     {
-        self.vec.push(value.serialize(Serializer)?);
+        self.vec.push(value.serialize(Serializer::new())?);
         Ok(())
     }
 
@@ -429,7 +439,7 @@ where
     where
         T: ser::Serialize + ?Sized,
     {
-        self.vec.push(value.serialize(Serializer)?);
+        self.vec.push(value.serialize(Serializer::new())?);
         Ok(())
     }
 
@@ -450,7 +460,7 @@ where
     where
         T: ser::Serialize + ?Sized,
     {
-        match key.serialize(Serializer)? {
+        match key.serialize(Serializer::<P>::new())? {
             IpldGeneric::String(string_key) => {
                 self.next_key = Some(string_key);
                 Ok(())
@@ -467,7 +477,7 @@ where
         // Panic because this indicates a bug in the program rather than an
         // expected failure.
         let key = key.expect("serialize_value called before serialize_key");
-        self.map.insert(key, value.serialize(Serializer)?);
+        self.map.insert(key, value.serialize(Serializer::new())?);
         Ok(())
     }
 
@@ -508,7 +518,7 @@ where
         T: ser::Serialize + ?Sized,
     {
         self.map
-            .insert(key.to_string().into(), value.serialize(Serializer)?);
+            .insert(key.to_string().into(), value.serialize(Serializer::new())?);
         Ok(())
     }
 
