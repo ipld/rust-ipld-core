@@ -87,7 +87,10 @@ impl ser::Serialize for Ipld {
         match &self {
             Self::Null => serializer.serialize_none(),
             Self::Bool(value) => serializer.serialize_bool(*value),
+            #[cfg(not(feature = "integer-max-i64"))]
             Self::Integer(value) => serializer.serialize_i128(*value),
+            #[cfg(feature = "integer-max-i64")]
+            Self::Integer(value) => serializer.serialize_i64(*value),
             Self::Float(value) => serializer.serialize_f64(*value),
             Self::String(value) => serializer.serialize_str(value),
             Self::Bytes(value) => serializer.serialize_bytes(value),
@@ -135,31 +138,55 @@ impl serde::Serializer for Serializer {
 
     #[inline]
     fn serialize_i64(self, value: i64) -> Result<Self::Ok, Self::Error> {
-        self.serialize_i128(i128::from(value))
+        #[cfg(not(feature = "integer-max-i64"))]
+        {
+            self.serialize_i128(i128::from(value))
+        }
+        #[cfg(feature = "integer-max-i64")]
+        {
+            Ok(Self::Ok::Integer(value))
+        }
     }
 
+    #[cfg_attr(feature = "integer-max-i64", allow(unused_variables))]
     fn serialize_i128(self, value: i128) -> Result<Self::Ok, Self::Error> {
-        Ok(Self::Ok::Integer(value))
+        #[cfg(not(feature = "integer-max-i64"))]
+        {
+            Ok(Self::Ok::Integer(value))
+        }
+        #[cfg(feature = "integer-max-i64")]
+        {
+            Err(ser::Error::custom("integer out of i64 bounds"))
+        }
     }
 
     #[inline]
     fn serialize_u8(self, value: u8) -> Result<Self::Ok, Self::Error> {
-        self.serialize_i128(value.into())
+        self.serialize_i64(value.into())
     }
 
     #[inline]
     fn serialize_u16(self, value: u16) -> Result<Self::Ok, Self::Error> {
-        self.serialize_i128(value.into())
+        self.serialize_i64(value.into())
     }
 
     #[inline]
     fn serialize_u32(self, value: u32) -> Result<Self::Ok, Self::Error> {
-        self.serialize_i128(value.into())
+        self.serialize_i64(value.into())
     }
 
     #[inline]
     fn serialize_u64(self, value: u64) -> Result<Self::Ok, Self::Error> {
-        self.serialize_i128(value.into())
+        #[cfg(not(feature = "integer-max-i64"))]
+        {
+            self.serialize_i128(value.into())
+        }
+        #[cfg(feature = "integer-max-i64")]
+        {
+            Ok(Self::Ok::Integer(value.try_into().map_err(|_| {
+                ser::Error::custom("integer out of i64 bounds")
+            })?))
+        }
     }
 
     #[inline]
