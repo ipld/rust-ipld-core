@@ -98,7 +98,13 @@ impl<'de> de::Deserialize<'de> for Ipld {
             where
                 E: de::Error,
             {
-                Ok(Ipld::Integer(v.into()))
+                #[cfg(not(feature = "integer-max-i64"))]
+                let integer = v.into();
+                #[cfg(feature = "integer-max-i64")]
+                let integer = v
+                    .try_into()
+                    .map_err(|_| de::Error::custom("integer out of i64 bounds"))?;
+                Ok(Ipld::Integer(integer))
             }
 
             #[inline]
@@ -106,15 +112,27 @@ impl<'de> de::Deserialize<'de> for Ipld {
             where
                 E: de::Error,
             {
-                Ok(Ipld::Integer(v.into()))
+                #[cfg(not(feature = "integer-max-i64"))]
+                let integer = v.into();
+                #[cfg(feature = "integer-max-i64")]
+                let integer = v;
+                Ok(Ipld::Integer(integer))
             }
 
             #[inline]
+            #[cfg_attr(feature = "integer-max-i64", allow(unused_variables))]
             fn visit_i128<E>(self, v: i128) -> Result<Self::Value, E>
             where
                 E: de::Error,
             {
-                Ok(Ipld::Integer(v))
+                #[cfg(not(feature = "integer-max-i64"))]
+                {
+                    Ok(Ipld::Integer(v))
+                }
+                #[cfg(feature = "integer-max-i64")]
+                {
+                    Err(de::Error::custom("integer out of i64 bounds"))
+                }
             }
 
             #[inline]
@@ -266,7 +284,10 @@ impl<'de> de::Deserializer<'de> for Ipld {
         match self {
             Self::Null => visitor.visit_none(),
             Self::Bool(bool) => visitor.visit_bool(bool),
+            #[cfg(not(feature = "integer-max-i64"))]
             Self::Integer(i128) => visitor.visit_i128(i128),
+            #[cfg(feature = "integer-max-i64")]
+            Self::Integer(i64) => visitor.visit_i64(i64),
             Self::Float(f64) => visitor.visit_f64(f64),
             Self::String(string) => visitor.visit_str(&string),
             Self::Bytes(bytes) => visitor.visit_bytes(&bytes),

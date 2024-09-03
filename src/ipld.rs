@@ -41,7 +41,11 @@ pub enum Ipld {
     /// Represents a boolean value.
     Bool(bool),
     /// Represents an integer.
+    #[cfg(not(feature = "integer-max-i64"))]
     Integer(i128),
+    /// Represents an integer.
+    #[cfg(feature = "integer-max-i64")]
+    Integer(i64),
     /// Represents a floating point value.
     Float(f64),
     /// Represents an UTF-8 string.

@@ -68,9 +68,10 @@ fn ipld_serializer_u32() {
 }
 
 #[test]
+#[allow(clippy::unnecessary_fallible_conversions)]
 fn ipld_serializer_u64() {
     let integer = 34567890123u64;
-    let ipld = Ipld::Integer(integer.into());
+    let ipld = Ipld::Integer(integer.try_into().unwrap());
     assert_serialized(integer, ipld);
 }
 
@@ -103,6 +104,7 @@ fn ipld_serializer_i64() {
 }
 
 #[test]
+#[cfg(not(feature = "integer-max-i64"))]
 fn ipld_serializer_i128() {
     let integer = 34567890123467890123i128;
     let ipld = Ipld::Integer(integer);

@@ -89,6 +89,7 @@ Feature flags
  - `codec` (enabled by default): Provides the `Codec` trait, which enables encoding and decoding independent of the IPLD Codec. The minimum supported Rust version (MSRV) can significantly be reduced to 1.64 by disabling this feature.
  - `serde`: Enables support for Serde serialization into/deserialization from the `Ipld` enum.
  - `arb`: Enables support for property based testing.
+ - `integer-max-i64`: The IPLD integer type is by default an `i128`. With this feature set it's an `i64`. This is useful to work around Serde limitations in regards to untagged enums that contain `i128` types. **Warning** enabling this feature might break compatibility with existing data.
 
 
 License

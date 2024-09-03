@@ -217,16 +217,21 @@ mod tests {
 
     use crate::ipld::Ipld;
 
+    #[cfg(not(feature = "integer-max-i64"))]
+    type Integer = i128;
+    #[cfg(feature = "integer-max-i64")]
+    type Integer = i64;
+
     #[test]
     #[should_panic]
     fn try_into_wrong_type() {
-        let _boolean: bool = Ipld::Integer(u8::MAX as i128).try_into().unwrap();
+        let _boolean: bool = Ipld::Integer(u8::MAX as Integer).try_into().unwrap();
     }
 
     #[test]
     #[should_panic]
     fn try_into_wrong_range() {
-        let int: u128 = Ipld::Integer(-1i128).try_into().unwrap();
+        let int: u128 = Ipld::Integer(-1 as Integer).try_into().unwrap();
         assert_eq!(int, u128::MIN);
     }
 
@@ -241,41 +246,47 @@ mod tests {
 
     #[test]
     fn try_into_ints() {
-        let int: u8 = Ipld::Integer(u8::MAX as i128).try_into().unwrap();
+        let int: u8 = Ipld::Integer(u8::MAX as Integer).try_into().unwrap();
         assert_eq!(int, u8::MAX);
 
-        let int: u16 = Ipld::Integer(u16::MAX as i128).try_into().unwrap();
+        let int: u16 = Ipld::Integer(u16::MAX as Integer).try_into().unwrap();
         assert_eq!(int, u16::MAX);
 
-        let int: u32 = Ipld::Integer(u32::MAX as i128).try_into().unwrap();
+        let int: u32 = Ipld::Integer(u32::MAX as Integer).try_into().unwrap();
         assert_eq!(int, u32::MAX);
 
-        let int: u64 = Ipld::Integer(u64::MAX as i128).try_into().unwrap();
-        assert_eq!(int, u64::MAX);
+        #[cfg(not(feature = "integer-max-i64"))]
+        {
+            let int: u64 = Ipld::Integer(u64::MAX as i128).try_into().unwrap();
+            assert_eq!(int, u64::MAX);
 
-        let int: usize = Ipld::Integer(usize::MAX as i128).try_into().unwrap();
-        assert_eq!(int, usize::MAX);
+            let int: usize = Ipld::Integer(usize::MAX as i128).try_into().unwrap();
+            assert_eq!(int, usize::MAX);
 
-        let int: u128 = Ipld::Integer(i128::MAX).try_into().unwrap();
-        assert_eq!(int, i128::MAX as u128);
+            let int: u128 = Ipld::Integer(i128::MAX).try_into().unwrap();
+            assert_eq!(int, i128::MAX as u128);
+        }
 
-        let int: i8 = Ipld::Integer(i8::MIN as i128).try_into().unwrap();
+        let int: i8 = Ipld::Integer(i8::MIN as Integer).try_into().unwrap();
         assert_eq!(int, i8::MIN);
 
-        let int: i16 = Ipld::Integer(i16::MIN as i128).try_into().unwrap();
+        let int: i16 = Ipld::Integer(i16::MIN as Integer).try_into().unwrap();
         assert_eq!(int, i16::MIN);
 
-        let int: i32 = Ipld::Integer(i32::MIN as i128).try_into().unwrap();
+        let int: i32 = Ipld::Integer(i32::MIN as Integer).try_into().unwrap();
         assert_eq!(int, i32::MIN);
 
-        let int: i64 = Ipld::Integer(i64::MIN as i128).try_into().unwrap();
+        let int: i64 = Ipld::Integer(i64::MIN as Integer).try_into().unwrap();
         assert_eq!(int, i64::MIN);
 
-        let int: isize = Ipld::Integer(isize::MIN as i128).try_into().unwrap();
+        let int: isize = Ipld::Integer(isize::MIN as Integer).try_into().unwrap();
         assert_eq!(int, isize::MIN);
 
-        let int: i128 = Ipld::Integer(i128::MIN).try_into().unwrap();
-        assert_eq!(int, i128::MIN);
+        #[cfg(not(feature = "integer-max-i64"))]
+        {
+            let int: i128 = Ipld::Integer(i128::MIN).try_into().unwrap();
+            assert_eq!(int, i128::MIN);
+        }
 
         let int: Option<i32> = Ipld::Null.try_into().unwrap();
         assert_eq!(int, Option::None)

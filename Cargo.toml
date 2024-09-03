@@ -20,6 +20,10 @@ serde = ["dep:serde", "dep:serde_bytes", "cid/serde"]
 arb = ["dep:quickcheck", "cid/arb"]
 # Enables support for the Codec trait, needs at least Rust 1.75
 codec = []
+# Makes the internal representation of an IPLD integer an `i64` instead of the default `i128`. This
+# is useful to work around Serde limitations in regards to untagged enums that contain `i128`
+# types. **Warning** enabling this feature might break compatibility with existing data.
+integer-max-i64 = []
 
 [dependencies]
 cid = { version = "0.11.1", default-features = false, features = ["alloc"] }
