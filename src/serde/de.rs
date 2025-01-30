@@ -413,17 +413,11 @@ impl<'de> de::Deserializer<'de> for Ipld {
 
     fn deserialize_tuple<V: de::Visitor<'de>>(
         self,
-        len: usize,
+        _len: usize,
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
         match self {
-            Self::List(list) => {
-                if len == list.len() {
-                    visit_seq(list, visitor)
-                } else {
-                    error(format!("The tuple size must match the length of the `Ipld::List`, tuple size: {}, `Ipld::List` length: {}", len, list.len()))
-                }
-            }
+            Self::List(list) => visit_seq(list, visitor),
             _ => error(format!(
                 "Only `Ipld::List` can be deserialized to tuple, input was `{:#?}`",
                 self
