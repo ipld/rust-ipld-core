@@ -378,8 +378,6 @@ fn ipld_deserializer_tuple_errors() {
     let error_not_enough = <(bool, String)>::deserialize(ipld_not_enough);
     assert!(error_not_enough.is_err());
 
-    /*
-    // TODO: this should work because of deny_unknown_fields but needs to be fixed upstream
     let ipld_too_many = Ipld::List(vec![
         Ipld::Bool(tuple.0),
         Ipld::String(tuple.1.clone()),
@@ -388,7 +386,6 @@ fn ipld_deserializer_tuple_errors() {
     error_except(tuple.clone(), &ipld_too_many);
     let error_too_many = <(bool, String)>::deserialize(ipld_too_many);
     assert!(error_too_many.is_err());
-    */
 
     let ipld_not_matching = Ipld::List(vec![Ipld::String(tuple.1.clone()), Ipld::Bool(tuple.0)]);
     error_except(tuple, &ipld_not_matching);
@@ -422,8 +419,6 @@ fn ipld_deserializer_tuple_struct_errors() {
     let error_not_enough = TupleStruct::deserialize(ipld_not_enough);
     assert!(error_not_enough.is_err());
 
-    /*
-    // TODO: this should work because of deny_unknown_fields but needs to be fixed upstream
     let ipld_too_many = Ipld::List(vec![
         Ipld::Integer(tuple_struct.0.into()),
         Ipld::Bool(tuple_struct.1),
@@ -432,7 +427,6 @@ fn ipld_deserializer_tuple_struct_errors() {
     error_except(tuple_struct.clone(), &ipld_too_many);
     let error_too_many = TupleStruct::deserialize(ipld_too_many);
     assert!(error_too_many.is_err());
-    */
 
     let ipld_not_matching = Ipld::List(vec![
         Ipld::Bool(tuple_struct.1),
@@ -655,11 +649,23 @@ fn ipld_deserializer_struct() {
 
     let deserialized = MyStruct::deserialize(ipld).unwrap();
     assert_eq!(deserialized, my_struct);
+
+    // Unknown fields are ignored by default.
+    let ipld = Ipld::Map(BTreeMap::from([
+        ("hello".into(), Ipld::Integer(my_struct.hello.into())),
+        ("world".into(), Ipld::Bool(my_struct.world)),
+        ("ignored".into(), Ipld::Bool(true)),
+    ]));
+    error_except(my_struct.clone(), &ipld);
+
+    let deserialized = MyStruct::deserialize(ipld).unwrap();
+    assert_eq!(deserialized, my_struct);
 }
 
 #[test]
 fn ipld_deserializer_struct_errors() {
     #[derive(Clone, Debug, Deserialize, PartialEq)]
+    #[serde(deny_unknown_fields)]
     struct MyStruct {
         hello: u8,
         world: bool,
@@ -682,7 +688,18 @@ fn ipld_deserializer_struct_errors() {
         "wrong".into(),
         Ipld::Integer(my_struct.hello.into()),
     )]));
+    error_except(my_struct.clone(), &ipld_wrong);
+    let error_wrong = MyStruct::deserialize(ipld_wrong);
+    assert!(error_wrong.is_err());
+
+    // Unknown fields are rejected.
+    let ipld_wrong = Ipld::Map(BTreeMap::from([
+        ("hello".into(), Ipld::Integer(my_struct.hello.into())),
+        ("world".into(), Ipld::Bool(my_struct.world)),
+        ("ignored".into(), Ipld::Bool(true)),
+    ]));
     error_except(my_struct, &ipld_wrong);
+
     let error_wrong = MyStruct::deserialize(ipld_wrong);
     assert!(error_wrong.is_err());
 }
