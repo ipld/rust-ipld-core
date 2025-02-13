@@ -1,5 +1,6 @@
 use alloc::{borrow::ToOwned, collections::BTreeMap, format, string::String, vec::Vec};
 use core::{convert::TryFrom, fmt};
+use serde::de::Error;
 
 use cid::serde::{BytesToCidVisitor, CID_SERDE_PRIVATE_IDENTIFIER};
 use cid::Cid;
@@ -413,17 +414,11 @@ impl<'de> de::Deserializer<'de> for Ipld {
 
     fn deserialize_tuple<V: de::Visitor<'de>>(
         self,
-        len: usize,
+        _len: usize,
         visitor: V,
     ) -> Result<V::Value, Self::Error> {
         match self {
-            Self::List(list) => {
-                if len == list.len() {
-                    visit_seq(list, visitor)
-                } else {
-                    error(format!("The tuple size must match the length of the `Ipld::List`, tuple size: {}, `Ipld::List` length: {}", len, list.len()))
-                }
-            }
+            Self::List(list) => visit_seq(list, visitor),
             _ => error(format!(
                 "Only `Ipld::List` can be deserialized to tuple, input was `{:#?}`",
                 self
@@ -568,7 +563,13 @@ where
     V: de::Visitor<'de>,
 {
     let mut deserializer = MapDeserializer::new(map);
-    visitor.visit_map(&mut deserializer)
+    let res = visitor.visit_map(&mut deserializer)?;
+    match deserializer.remaining() {
+        0 => Ok(res),
+        remaining => Err(SerdeError::custom(format!(
+            "The type failed to consume the entire map: {remaining} items remaining"
+        ))),
+    }
 }
 
 fn visit_seq<'de, V>(list: Vec<Ipld>, visitor: V) -> Result<V::Value, SerdeError>
@@ -576,7 +577,13 @@ where
     V: de::Visitor<'de>,
 {
     let mut deserializer = SeqDeserializer::new(list);
-    visitor.visit_seq(&mut deserializer)
+    let res = visitor.visit_seq(&mut deserializer)?;
+    match deserializer.remaining() {
+        0 => Ok(res),
+        remaining => Err(SerdeError::custom(format!(
+            "The type failed to consume the entire sequence: {remaining} items remaining"
+        ))),
+    }
 }
 
 // Heavily based on
@@ -592,6 +599,9 @@ impl MapDeserializer {
             iter: map.into_iter(),
             value: None,
         }
+    }
+    fn remaining(self) -> usize {
+        self.iter.count()
     }
 }
 
@@ -640,6 +650,9 @@ impl SeqDeserializer {
         Self {
             iter: vec.into_iter(),
         }
+    }
+    fn remaining(self) -> usize {
+        self.iter.count()
     }
 }
 

@@ -5,7 +5,7 @@ extern crate alloc;
 use alloc::collections::BTreeMap;
 use core::convert::TryFrom;
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_bytes::ByteBuf;
 use serde_json::json;
 
@@ -367,7 +367,11 @@ fn ipld_deserializer_tuple() {
 
 #[test]
 fn ipld_deserializer_tuple_errors() {
-    let tuple = (true, "hello".to_string());
+    #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+    #[serde(deny_unknown_fields)]
+    struct Tuple(bool, String);
+
+    let tuple = Tuple(true, "hello".to_string());
 
     let ipld_not_enough = Ipld::List(vec![Ipld::Bool(tuple.0)]);
     error_except(tuple.clone(), &ipld_not_enough);
@@ -405,6 +409,7 @@ fn ipld_deserializer_tuple_struct() {
 #[test]
 fn ipld_deserializer_tuple_struct_errors() {
     #[derive(Clone, Debug, Deserialize, PartialEq)]
+    #[serde(deny_unknown_fields)]
     struct TupleStruct(u8, bool);
 
     let tuple_struct = TupleStruct(82, true);
@@ -644,11 +649,23 @@ fn ipld_deserializer_struct() {
 
     let deserialized = MyStruct::deserialize(ipld).unwrap();
     assert_eq!(deserialized, my_struct);
+
+    // Unknown fields are ignored by default.
+    let ipld = Ipld::Map(BTreeMap::from([
+        ("hello".into(), Ipld::Integer(my_struct.hello.into())),
+        ("world".into(), Ipld::Bool(my_struct.world)),
+        ("ignored".into(), Ipld::Bool(true)),
+    ]));
+    error_except(my_struct.clone(), &ipld);
+
+    let deserialized = MyStruct::deserialize(ipld).unwrap();
+    assert_eq!(deserialized, my_struct);
 }
 
 #[test]
 fn ipld_deserializer_struct_errors() {
     #[derive(Clone, Debug, Deserialize, PartialEq)]
+    #[serde(deny_unknown_fields)]
     struct MyStruct {
         hello: u8,
         world: bool,
@@ -671,7 +688,18 @@ fn ipld_deserializer_struct_errors() {
         "wrong".into(),
         Ipld::Integer(my_struct.hello.into()),
     )]));
+    error_except(my_struct.clone(), &ipld_wrong);
+    let error_wrong = MyStruct::deserialize(ipld_wrong);
+    assert!(error_wrong.is_err());
+
+    // Unknown fields are rejected.
+    let ipld_wrong = Ipld::Map(BTreeMap::from([
+        ("hello".into(), Ipld::Integer(my_struct.hello.into())),
+        ("world".into(), Ipld::Bool(my_struct.world)),
+        ("ignored".into(), Ipld::Bool(true)),
+    ]));
     error_except(my_struct, &ipld_wrong);
+
     let error_wrong = MyStruct::deserialize(ipld_wrong);
     assert!(error_wrong.is_err());
 }
