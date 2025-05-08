@@ -29,8 +29,8 @@ serde_bytes = { version = "0.11.5", default-features = false, optional = true }
 
 [dev-dependencies]
 serde_derive = "1.0.197"
-serde_ipld_dagcbor = "0.6.0"
-serde_ipld_dagjson = "0.2.0"
+serde_ipld_dagcbor = { version = "*", git = "https://github.com/expede/serde_ipld_dagcbor", branch = "from_u64" }
+serde_ipld_dagjson = { version = "*", git = "https://github.com/expede/serde_ipld_dagjson", branch = "update-codec" }
 serde_json = "1.0.79"
 serde_test = "1.0.132"
 

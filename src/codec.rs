@@ -10,25 +10,28 @@ use std::io::{BufRead, Write};
 /// Each IPLD codec implementation should implement this Codec trait. This way codecs can be more
 /// easily exchanged or combined.
 pub trait Codec<T>: Links {
-    /// The multicodec code of the IPLD codec.
-    const CODE: u64;
     /// The error that is returned if encoding or decoding fails.
     type Error;
 
+    /// The multicodec code of the IPLD codec.
+    fn to_code(&self) -> u64;
+    /// Attempt to convert from a `u64` code to this `Codec`.
+    fn try_from_code(code: u64) -> Option<Self> where Self: Sized;
+
     /// Decode a reader into the desired type.
-    fn decode<R: BufRead>(reader: R) -> Result<T, Self::Error>;
+    fn decode<R: BufRead>(&self, reader: R) -> Result<T, Self::Error>;
     /// Encode a type into a writer.
-    fn encode<W: Write>(writer: W, data: &T) -> Result<(), Self::Error>;
+    fn encode<W: Write>(&self, writer: W, data: &T) -> Result<(), Self::Error>;
 
     /// Decode a slice into the desired type.
-    fn decode_from_slice(bytes: &[u8]) -> Result<T, Self::Error> {
-        Self::decode(bytes)
+    fn decode_from_slice(&self, bytes: &[u8]) -> Result<T, Self::Error> {
+        self.decode(bytes)
     }
 
     /// Encode a type into bytes.
-    fn encode_to_vec(data: &T) -> Result<Vec<u8>, Self::Error> {
+    fn encode_to_vec(&self, data: &T) -> Result<Vec<u8>, Self::Error> {
         let mut output = Vec::new();
-        Self::encode(&mut output, data)?;
+        self.encode(&mut output, data)?;
         Ok(output)
     }
 }
@@ -39,5 +42,5 @@ pub trait Links {
     type LinksError;
 
     /// Return all links (CIDs) that the given encoded data contains.
-    fn links(bytes: &[u8]) -> Result<impl Iterator<Item = Cid>, Self::LinksError>;
+    fn links(&self, bytes: &[u8]) -> Result<impl Iterator<Item = Cid>, Self::LinksError>;
 }
