@@ -254,8 +254,9 @@ impl serde::Serializer for Serializer {
     }
 
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
+        let capacity = super::size_hint_cautious::<Ipld>(len.unwrap_or(0));
         Ok(SerializeVec {
-            vec: Vec::with_capacity(len.unwrap_or(0)),
+            vec: Vec::with_capacity(capacity),
         })
     }
 
@@ -278,9 +279,10 @@ impl serde::Serializer for Serializer {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
+        let capacity = super::size_hint_cautious::<Ipld>(len);
         Ok(SerializeTupleVariant {
             name: String::from(variant),
-            vec: Vec::with_capacity(len),
+            vec: Vec::with_capacity(capacity),
         })
     }
 
