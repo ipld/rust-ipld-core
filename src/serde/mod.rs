@@ -7,7 +7,7 @@ mod extract_links;
 mod ser;
 
 use alloc::string::{String, ToString};
-use core::fmt;
+use core::{fmt, mem};
 
 pub use de::from_ipld;
 pub use extract_links::ExtractLinks;
@@ -36,6 +36,13 @@ impl serde::ser::Error for SerdeError {
 }
 
 impl serde::ser::StdError for SerdeError {}
+
+// Limit the the number of bytes that are used for preallocating `Vec`s. This follows what Serde is
+// doing internally with `serde::private::size_hint::cautious()`.
+fn size_hint_cautious<T>(size_hint: usize) -> usize {
+    const MAX_PREALLOC_BYTES: usize = 1024 * 1024;
+    size_hint.min(MAX_PREALLOC_BYTES / mem::size_of::<T>())
+}
 
 #[cfg(test)]
 mod tests {
