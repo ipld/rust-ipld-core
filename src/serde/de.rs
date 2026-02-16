@@ -163,7 +163,7 @@ impl<'de> de::Deserialize<'de> for Ipld {
             where
                 V: de::SeqAccess<'de>,
             {
-                let capacity = super::size_hint_cautious::<Ipld>(visitor.size_hint().unwrap_or(0));
+                let capacity = super::size_hint_cautious(visitor.size_hint().unwrap_or(0));
                 let mut vec = Vec::with_capacity(capacity);
 
                 while let Some(elem) = visitor.next_element()? {
