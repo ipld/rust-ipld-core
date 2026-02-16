@@ -1,6 +1,6 @@
 [package]
 name = "ipld-core"
-version = "0.4.2"
+version = "0.4.3"
 authors = [
     "Volker Mische <volker.mische@gmail.com>"
 ]
