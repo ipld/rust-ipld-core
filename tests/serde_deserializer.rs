@@ -12,6 +12,11 @@ use serde_json::json;
 use ipld_core::cid::Cid;
 use ipld_core::ipld::Ipld;
 
+#[cfg(not(feature = "integer-max-i64"))]
+type Integer = i128;
+#[cfg(feature = "integer-max-i64")]
+type Integer = i64;
+
 /// This function is to test that all IPLD kinds except the given one errors, when trying to
 /// deserialize to the given Rust type.
 fn error_except<'de, T>(_input: T, except: &Ipld)
@@ -98,9 +103,9 @@ fn ipld_deserializer_u8() {
         "Correctly deserialize Ipld::Integer to u8."
     );
 
-    let too_large = u8::deserialize(Ipld::Integer((u8::MAX as i128) + 10));
+    let too_large = u8::deserialize(Ipld::Integer((u8::MAX as Integer) + 10));
     assert!(too_large.is_err(), "Number must be within range.");
-    let too_small = u8::deserialize(Ipld::Integer((u8::MIN as i128) - 10));
+    let too_small = u8::deserialize(Ipld::Integer((u8::MIN as Integer) - 10));
     assert!(too_small.is_err(), "Number must be within range.");
 }
 
@@ -116,9 +121,9 @@ fn ipld_deserializer_u16() {
         "Correctly deserialize Ipld::Integer to u16."
     );
 
-    let too_large = u16::deserialize(Ipld::Integer((u16::MAX as i128) + 10));
+    let too_large = u16::deserialize(Ipld::Integer((u16::MAX as Integer) + 10));
     assert!(too_large.is_err(), "Number must be within range.");
-    let too_small = u16::deserialize(Ipld::Integer((u16::MIN as i128) - 10));
+    let too_small = u16::deserialize(Ipld::Integer((u16::MIN as Integer) - 10));
     assert!(too_small.is_err(), "Number must be within range.");
 }
 
@@ -134,16 +139,17 @@ fn ipld_deserializer_u32() {
         "Correctly deserialize Ipld::Integer to u32."
     );
 
-    let too_large = u32::deserialize(Ipld::Integer((u32::MAX as i128) + 10));
+    let too_large = u32::deserialize(Ipld::Integer((u32::MAX as Integer) + 10));
     assert!(too_large.is_err(), "Number must be within range.");
-    let too_small = u32::deserialize(Ipld::Integer((u32::MIN as i128) - 10));
+    let too_small = u32::deserialize(Ipld::Integer((u32::MIN as Integer) - 10));
     assert!(too_small.is_err(), "Number must be within range.");
 }
 
 #[test]
+#[allow(clippy::unnecessary_fallible_conversions)]
 fn ipld_deserializer_u64() {
     let integer = 34567890123u64;
-    let ipld = Ipld::Integer(integer.into());
+    let ipld = Ipld::Integer(integer.try_into().unwrap());
     error_except(integer, &ipld);
 
     let deserialized = u64::deserialize(ipld).unwrap();
@@ -152,10 +158,13 @@ fn ipld_deserializer_u64() {
         "Correctly deserialize Ipld::Integer to u64."
     );
 
-    let too_large = u64::deserialize(Ipld::Integer((u64::MAX as i128) + 10));
-    assert!(too_large.is_err(), "Number must be within range.");
-    let too_small = u64::deserialize(Ipld::Integer((u64::MIN as i128) - 10));
-    assert!(too_small.is_err(), "Number must be within range.");
+    #[cfg(not(feature = "integer-max-i64"))]
+    {
+        let too_large = u64::deserialize(Ipld::Integer((u64::MAX as Integer) + 10));
+        assert!(too_large.is_err(), "Number must be within range.");
+        let too_small = u64::deserialize(Ipld::Integer((u64::MIN as Integer) - 10));
+        assert!(too_small.is_err(), "Number must be within range.");
+    }
 }
 
 #[test]
@@ -170,9 +179,9 @@ fn ipld_deserializer_i8() {
         "Correctly deserialize Ipld::Integer to i8."
     );
 
-    let too_large = i8::deserialize(Ipld::Integer((i8::MAX as i128) + 10));
+    let too_large = i8::deserialize(Ipld::Integer((i8::MAX as Integer) + 10));
     assert!(too_large.is_err(), "Number must be within range.");
-    let too_small = i8::deserialize(Ipld::Integer((i8::MIN as i128) - 10));
+    let too_small = i8::deserialize(Ipld::Integer((i8::MIN as Integer) - 10));
     assert!(too_small.is_err(), "Number must be within range.");
 }
 
@@ -188,9 +197,9 @@ fn ipld_deserializer_i16() {
         "Correctly deserialize Ipld::Integer to i16."
     );
 
-    let too_large = i16::deserialize(Ipld::Integer((i16::MAX as i128) + 10));
+    let too_large = i16::deserialize(Ipld::Integer((i16::MAX as Integer) + 10));
     assert!(too_large.is_err(), "Number must be within range.");
-    let too_small = i16::deserialize(Ipld::Integer((i16::MIN as i128) - 10));
+    let too_small = i16::deserialize(Ipld::Integer((i16::MIN as Integer) - 10));
     assert!(too_small.is_err(), "Number must be within range.");
 }
 
@@ -206,9 +215,9 @@ fn ipld_deserializer_i32() {
         "Correctly deserialize Ipld::Integer to i32."
     );
 
-    let too_large = i32::deserialize(Ipld::Integer((i32::MAX as i128) + 10));
+    let too_large = i32::deserialize(Ipld::Integer((i32::MAX as Integer) + 10));
     assert!(too_large.is_err(), "Number must be within range.");
-    let too_small = i32::deserialize(Ipld::Integer((i32::MIN as i128) - 10));
+    let too_small = i32::deserialize(Ipld::Integer((i32::MIN as Integer) - 10));
     assert!(too_small.is_err(), "Number must be within range.");
 }
 
@@ -224,10 +233,13 @@ fn ipld_deserializer_i64() {
         "Correctly deserialize Ipld::Integer to i64."
     );
 
-    let too_large = i64::deserialize(Ipld::Integer((i64::MAX as i128) + 10));
-    assert!(too_large.is_err(), "Number must be within range.");
-    let too_small = i64::deserialize(Ipld::Integer((i64::MIN as i128) - 10));
-    assert!(too_small.is_err(), "Number must be within range.");
+    #[cfg(not(feature = "integer-max-i64"))]
+    {
+        let too_large = i64::deserialize(Ipld::Integer((i64::MAX as i128) + 10));
+        assert!(too_large.is_err(), "Number must be within range.");
+        let too_small = i64::deserialize(Ipld::Integer((i64::MIN as i128) - 10));
+        assert!(too_small.is_err(), "Number must be within range.");
+    }
 }
 
 #[test]

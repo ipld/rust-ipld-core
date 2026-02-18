@@ -36,7 +36,10 @@ impl Ipld {
         match index {
             0 => Ipld::Null,
             1 => Ipld::Bool(bool::arbitrary(g)),
+            #[cfg(not(feature = "integer-max-i64"))]
             2 => Ipld::Integer(i128::arbitrary(g)),
+            #[cfg(feature = "integer-max-i64")]
+            2 => Ipld::Integer(i64::arbitrary(g)),
             3 => Ipld::Float(f64::arbitrary(g)),
             4 => Ipld::String(String::arbitrary(g)),
             5 => Ipld::Bytes(Vec::arbitrary(g)),
